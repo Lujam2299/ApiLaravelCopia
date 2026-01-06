@@ -187,6 +187,9 @@ public function user(Request $request)
         'sol_docs_id' => $user->sol_docs_id,
         'photo_url' => $photoUrl,
         'punto' => $user->punto ?? null,
+        'empresa' => $user->empresa ?? null,        // Nuevo campo
+        'fecha_ingreso' => $user->fecha_ingreso ?? null,  // Nuevo campo
+        'rol' => $user->rol ?? null,          // Nuevo campo
     ];
 
     \Log::info('Respondiendo con datos: ', $responseData);
