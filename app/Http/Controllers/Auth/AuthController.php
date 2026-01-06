@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use App\Models\apiUser; // Asegúrate de que este es el modelo de usuario correcto
+use App\Models\User; // Asegúrate de que este es el modelo de usuario correcto
 use App\Models\Mision; // ¡IMPORTANTE! Importa el modelo Mision
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth; // Asegúrate de importar Auth para Auth::user() si lo usas
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -29,7 +30,7 @@ class AuthController extends Controller
                 'password.numbers' => 'La contraseña debe contener al menos 1 número.',
             ]);
 
-            $user = apiUser::where('email', $validatedData['email'])->first();
+            $user = User::where('email', $validatedData['email'])->first();
 
             if (!$user || !Hash::check($validatedData['password'], $user->password)) {
                 return response()->json(['message' => 'Credenciales inválidas'], 401);
@@ -89,7 +90,7 @@ class AuthController extends Controller
             ]);
 
             // Create the new user using the validated data
-            $user = apiUser::create([
+            $user = User::create([
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
                 'password' => Hash::make($validatedData['password']),
@@ -132,4 +133,64 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Has cerrado sesión exitosamente.'], 200);
     }
+
+public function user(Request $request)
+{
+    \Log::info('Entrando al método user del AuthController');
+    \Log::info('Usuario autenticado: ', ['user_id' => $request->user()->id]);
+
+    $user = $request->user();
+
+    \Log::info('Usuario antes de cargar relación: ', ['sol_docs_id' => $user->sol_docs_id]);
+
+    // Cargar la relación con documentación de altas
+    $user->load('documentacionAltas');
+
+    \Log::info('Usuario después de cargar relación: ', [
+        'has_documentacion' => $user->documentacionAltas ? 'true' : 'false',
+        'documentacion_altas' => $user->documentacionAltas
+    ]);
+
+    // Obtener la URL de la foto si existe
+    $photoUrl = null;
+    if ($user->documentacionAltas && $user->documentacionAltas->arch_foto) {
+        \Log::info('Foto encontrada en documentación: ', ['arch_foto' => $user->documentacionAltas->arch_foto]);
+
+        // Convertir la ruta de la base de datos a la ruta pública
+        $relativePath = str_replace(['storage/', 'storage\\'], '', $user->documentacionAltas->arch_foto);
+
+        // Verificar si el archivo existe en storage/app/public
+        $publicPath = storage_path('app/public/' . $relativePath);
+
+        \Log::info('Ruta pública del archivo: ', ['path' => $publicPath]);
+
+        if (file_exists($publicPath)) {
+            \Log::info('Archivo existe en storage/app/public');
+
+            // Generar URL usando asset (esto usará la ruta pública)
+            $photoUrl = asset('storage/' . $relativePath);
+            \Log::info('URL generada: ', ['url' => $photoUrl]);
+        } else {
+            \Log::info('Archivo no existe en storage/app/public');
+        }
+    } else {
+        \Log::info('No hay foto en documentación altas o no hay relación');
+    }
+
+    $responseData = [
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'telefono' => $user->telefono ?? null,
+        'direccion' => $user->direccion ?? null,
+        'created_at' => $user->created_at,
+        'sol_docs_id' => $user->sol_docs_id,
+        'photo_url' => $photoUrl,
+        'punto' => $user->punto ?? null,
+    ];
+
+    \Log::info('Respondiendo con datos: ', $responseData);
+
+    return response()->json($responseData);
+}
 }

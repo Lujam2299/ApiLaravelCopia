@@ -9,16 +9,19 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
+use Illuminate\Support\Facades\Storage;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+Route::get('/test', function () { return response()->json(['message' => 'OK']); });
 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', fn(Request $request) => $request->user());
+//    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', [AuthController::class, 'user']);
 
     // Rutas de gastos y turnos
     Route::post('/guardarTurno', [TurnosController::class, 'guardarTurno']);
@@ -41,19 +44,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [MisionItinerarioController::class, 'index'])->name('misiones.itinerarios.index');
         Route::get('/user/{user_id}', [MisionItinerarioController::class, 'show'])->name('misiones.itinerarios.show');
     });
-    
+
     // Nuevas rutas para manejo de archivos de misión
     Route::prefix('misiones')->group(function () {
          // Obtener misiones del usuario (activas y pendientes)
     Route::get('/usuario', [MisionController::class, 'misionesUsuario'])
         ->name('misiones.usuario');
-    
+
     // Obtener archivo de misión específica
     Route::get('/{mision}/archivo', [MisionController::class, 'archivoMision'])
         ->name('misiones.archivo');
-    
+
     // Descargar archivo
     Route::get('/{mision}/descargar', [MisionController::class, 'descargarArchivo'])
         ->name('misiones.descargar');
     });
+
+    Route::get('/user-photo/{solicitud_id}', function ($solicitud_id) {
+    $documentacion = App\Models\DocumentacionAltas::find($solicitud_id);
+
+    if ($documentacion && $documentacion->arch_foto) {
+        // Asegurarnos de que la ruta es correcta
+        $photoPath = $documentacion->arch_foto;
+
+        if (Storage::exists($photoPath)) {
+            $url = asset(str_replace('storage/', 'storage/', $photoPath));
+            return response()->json(['photo_url' => $url]);
+        }
+    }
+
+    return response()->json(['photo_url' => null], 404);
+})->where('solicitud_id', '[0-9]+');
 });

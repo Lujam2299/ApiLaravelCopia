@@ -11,7 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Conversation> $conversations
  */
 
-class apiUser extends Authenticatable
+class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
@@ -28,6 +28,7 @@ class apiUser extends Authenticatable
         'rol',
         'telefono',
         'punto',
+        'sol_docs_id',
         'email_verified_at',
         'remember_token'
     ];
@@ -57,6 +58,10 @@ class apiUser extends Authenticatable
     public function gastos()
     {
         return $this->hasMany(gastos::class);
+    }
+    public function documentacionAltas()
+    {
+        return $this->belongsTo(DocumentacionAltas::class, 'sol_docs_id', 'id');
     }
     public function routeNotificationForFcm()
     {
