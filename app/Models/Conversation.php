@@ -14,20 +14,30 @@ class Conversation extends Model
 
     public function users()
     {
-        return $this->belongsToMany(apiUser::class, 'conversation_user')
-            ->withPivot('last_read_at')
-            ->withTimestamps();
+        return $this->belongsToMany(User::class, 'conversation_user', 'conversation_id', 'api_user_id')
+                    ->withPivot('last_read_at')
+                    ->withTimestamps();
     }
 
     public function messages()
     {
         return $this->hasMany(Message::class);
     }
-    
-    public function latestMessage()
-{
-    return $this->hasOne(Message::class)->latestOfMany();
-}
 
-    
+    public function scopeWithLastReadAt($query, $userId)
+    {
+        return $query->with(['users', 'latestMessage'])
+            ->select('conversations.*')
+            ->leftJoin('conversation_user', function($join) use ($userId) {
+                $join->on('conversation_user.conversation_id', '=', 'conversations.id')
+                    ->where('conversation_user.user_id', '=', $userId);
+            })
+            ->addSelect('conversation_user.last_read_at');
+    }
+
+    public function latestMessage()
+    {
+        return $this->hasOne(Message::class)
+                    ->latest();
+    }
 }

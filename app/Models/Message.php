@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Events\MessageSent;
 
 class Message extends Model
 {
@@ -22,6 +23,11 @@ class Message extends Model
         'read_at' => 'datetime',
     ];
 
+    // Disparar el evento cuando se crea un mensaje
+    protected $dispatchesEvents = [
+        'created' => MessageSent::class,
+    ];
+
     public function conversation()
     {
         return $this->belongsTo(Conversation::class);
@@ -29,7 +35,7 @@ class Message extends Model
 
     public function user()
     {
-        return $this->belongsTo(apiUser::class);
+        return $this->belongsTo(User::class);
     }
 
     public function parent()

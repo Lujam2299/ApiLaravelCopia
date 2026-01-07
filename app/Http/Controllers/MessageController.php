@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Conversation;
 use App\Models\Message;
-use App\Models\apiUser;
+use App\Models\User;
 use App\Events\MessageSent;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +22,7 @@ class MessageController extends Controller
                 'query' => 'required|string|min:3'
             ]);
 
-            $users = apiUser::where('name', 'like', '%' . $validated['query'] . '%')
+            $users = User::where('name', 'like', '%' . $validated['query'] . '%')
                 ->orWhere('email', 'like', '%' . $validated['query'] . '%')
                 ->orWhere('telefono', 'like', '%' . $validated['query'] . '%')
                 ->select('id', 'name', 'email', 'telefono')
@@ -43,7 +43,7 @@ class MessageController extends Controller
             'user_id' => 'required|exists:users,id'
         ]);
 
-        $user = apiUser::find($request->user_id);
+        $user = User::find($request->user_id);
         $currentUser = Auth::user();
 
         // Verificar si ya existe una conversación entre estos usuarios
@@ -125,46 +125,75 @@ class MessageController extends Controller
 
         return response()->json(['error' => 'Unauthorized'], 403);
     }
-    public function getConversations(Request $request)
-    {
-        try {
-            $user = $request->user();
+public function getConversations(Request $request)
+{
+    try {
+        $user = $request->user();
 
-            $conversations = $user->conversations()
-                ->with(['users', 'latestMessage'])
-                ->orderByDesc(
-                    Message::select('created_at')
-                        ->whereColumn('conversation_id', 'conversations.id')
-                        ->latest()
-                        ->take(1)
-                )
-                ->get()
-                ->map(function ($conversation) use ($user) {
-                    $otherUser = $conversation->users->firstWhere('id', '!=', $user->id);
+        $conversations = $user->conversations()
+            ->with(['users:id,name', 'latestMessage:id,conversation_id,body,created_at,user_id'])
+            ->orderByDesc(
+                Message::select('created_at')
+                    ->whereColumn('conversation_id', 'conversations.id')
+                    ->latest()
+                    ->take(1)
+            )
+            ->get()
+            ->map(function ($conversation) use ($user) {
+                // Cargar la relación users si no está cargada
+                if (!$conversation->relationLoaded('users')) {
+                    $conversation->load('users:id,name');
+                }
 
-                    // Obtener el conteo de mensajes no leídos (creados después del last_read_at)
+                // Obtener el otro usuario (excluyendo al usuario actual)
+                $otherUser = $conversation->users->firstWhere('id', '!=', $user->id);
+
+                // Obtener last_read_at desde la tabla pivote
+                $pivotData = DB::table('conversation_user')
+                    ->where('conversation_id', $conversation->id)
+                    ->where('api_user_id', $user->id)
+                    ->first();
+
+                $lastReadAt = $pivotData ? $pivotData->last_read_at : null;
+
+                // Contar mensajes no leídos
+                $unreadCount = 0;
+                if ($lastReadAt) {
                     $unreadCount = $conversation->messages()
                         ->where('user_id', '!=', $user->id)
-                        ->where('created_at', '>', $conversation->pivot->last_read_at ?? '1970-01-01')
+                        ->where('created_at', '>', $lastReadAt)
                         ->count();
+                } else {
+                    $unreadCount = $conversation->messages()
+                        ->where('user_id', '!=', $user->id)
+                        ->count();
+                }
 
-                    return [
-                        'id' => $conversation->id,
-                        'is_group' => $conversation->is_group,
-                        'latest_message' => $conversation->latestMessage,
-                        'users' => $conversation->users,
-                        'title' => $conversation->is_group ? $conversation->title : $otherUser->name,
-                        'unread_count' => $unreadCount,
-                        'last_read_at' => $conversation->pivot->last_read_at
-                    ];
-                });
+                return [
+                    'id' => $conversation->id,
+                    'is_group' => $conversation->is_group,
+                    'latest_message' => $conversation->latestMessage,
+                    'users' => $conversation->users->map(function ($u) {
+                        return [
+                            'id' => $u->id,
+                            'name' => $u->name
+                        ];
+                    }),
+                    'title' => $conversation->is_group ? $conversation->title : ($otherUser ? $otherUser->name : 'Conversación'),
+                    'unread_count' => $unreadCount,
+                    'last_read_at' => $lastReadAt
+                ];
+            });
 
-            return response()->json($conversations);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al obtener conversaciones',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json($conversations);
+    } catch (\Exception $e) {
+        Log::error('Error en getConversations: ' . $e->getMessage() . ' en línea ' . $e->getLine() . ' en archivo ' . $e->getFile());
+        return response()->json([
+            'message' => 'Error al obtener conversaciones',
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
     }
+}
 }
