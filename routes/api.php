@@ -18,6 +18,23 @@ Route::get('/test', function () { return response()->json(['message' => 'OK']); 
 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/broadcasting/auth', function (Request $request) {
+        // Verificar si el usuario está autenticado
+        if ($request->user()) {
+            return response()->json([
+                'channel_data' => [
+                    'user_id' => $request->user()->id,
+                    'user_info' => [
+                        'id' => $request->user()->id,
+                        'name' => $request->user()->name,
+                    ]
+                ]
+            ]);
+        }
+
+        abort(403, 'Forbidden');
+    });
+
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
 //    Route::get('/user', fn(Request $request) => $request->user());

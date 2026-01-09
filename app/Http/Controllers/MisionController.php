@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Mision;
+use App\Models\Misiones;
 use Illuminate\Support\Facades\Storage;
 
 class MisionController extends Controller
@@ -15,8 +15,8 @@ class MisionController extends Controller
     {
         try {
             $user = $request->user();
-            
-            $misiones = Mision::whereJsonContains('agentes_id', $user->id)
+
+            $misiones = Misiones::whereJsonContains('agentes_id', $user->id)
                 ->whereIn('estatus', ['Activa', 'Pendiente'])
                 ->select([
                     'id',
@@ -50,7 +50,7 @@ class MisionController extends Controller
 {
     try {
         $user = $request->user();
-        $mision = Mision::findOrFail($misionId);
+        $mision = Misiones::findOrFail($misionId);
 
         // Verificar asignación
         if (!in_array($user->id, $mision->agentes_id ?? [])) {
@@ -99,7 +99,7 @@ class MisionController extends Controller
     {
         try {
             $user = $request->user();
-            $mision = Mision::findOrFail($misionId);
+            $mision = Misiones::findOrFail($misionId);
 
             // Verificar asignación
             if (!in_array($user->id, $mision->agentes_id ?? [])) {

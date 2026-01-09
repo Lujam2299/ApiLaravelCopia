@@ -16,26 +16,36 @@ use Illuminate\Support\Facades\Log;
 class MessageController extends Controller
 {
     public function searchUsers(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'query' => 'required|string|min:3'
-            ]);
+{
+    $query = $request->input('query');
 
-            $users = User::where('name', 'like', '%' . $validated['query'] . '%')
-                ->orWhere('email', 'like', '%' . $validated['query'] . '%')
-                ->orWhere('telefono', 'like', '%' . $validated['query'] . '%')
-                ->select('id', 'name', 'email', 'telefono')
+    $users = User::where('name', 'LIKE', "%{$query}%")
+                ->orWhere('email', 'LIKE', "%{$query}%")
+                ->with('documentacionAltas:arch_foto,id,solicitud_id') // Cargar la relación
                 ->limit(10)
-                ->get();
+                ->get()
+                ->map(function ($user) {
+                    $photoUrl = null;
 
-            return response()->json($users);
-        } catch (\Exception $e) {
-            // Log del error (ver storage/logs/laravel.log)
-            Log::error("Error en searchUsers: " . $e->getMessage());
-            return response()->json(['error' => 'Error interno del servidor'], 500);
-        }
-    }
+                    if ($user->documentacionAltas && $user->documentacionAltas->arch_foto) {
+                        $relativePath = str_replace(['storage/', 'storage\\'], '', $user->documentacionAltas->arch_foto);
+                        $publicPath = storage_path('app/public/' . $relativePath);
+
+                        if (file_exists($publicPath)) {
+                            $photoUrl = asset('storage/' . $relativePath);
+                        }
+                    }
+
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'photo_url' => $photoUrl
+                    ];
+                });
+
+    return response()->json($users);
+}
 
     public function startConversation(Request $request)
     {
@@ -130,8 +140,10 @@ public function getConversations(Request $request)
     try {
         $user = $request->user();
 
+        \Log::info('Usuario actual en getConversations:', ['user_id' => $user->id]);
+
         $conversations = $user->conversations()
-            ->with(['users:id,name', 'latestMessage:id,conversation_id,body,created_at,user_id'])
+            ->with(['users:id,name,sol_docs_id'])
             ->orderByDesc(
                 Message::select('created_at')
                     ->whereColumn('conversation_id', 'conversations.id')
@@ -142,8 +154,13 @@ public function getConversations(Request $request)
             ->map(function ($conversation) use ($user) {
                 // Cargar la relación users si no está cargada
                 if (!$conversation->relationLoaded('users')) {
-                    $conversation->load('users:id,name');
+                    $conversation->load('users:id,name,sol_docs_id');
                 }
+
+                \Log::info('Usuarios en conversación:', [
+                    'conversation_id' => $conversation->id,
+                    'users' => $conversation->users->toArray()
+                ]);
 
                 // Obtener el otro usuario (excluyendo al usuario actual)
                 $otherUser = $conversation->users->firstWhere('id', '!=', $user->id);
@@ -169,21 +186,64 @@ public function getConversations(Request $request)
                         ->count();
                 }
 
+                // Procesar usuarios para incluir la URL de la foto
+                $processedUsers = $conversation->users->map(function ($u) {
+                    $photoUrl = null;
+
+                    \Log::info('Procesando usuario para foto:', [
+                        'user_id' => $u->id,
+                        'sol_docs_id' => $u->sol_docs_id
+                    ]);
+
+                    if ($u->sol_docs_id) {
+                        // Cargar la documentación para obtener la ruta de la foto
+                        $documentacion = \App\Models\DocumentacionAltas::find($u->sol_docs_id);
+
+                        if ($documentacion && $documentacion->arch_foto) {
+                            $relativePath = str_replace(['storage/', 'storage\\'], '', $documentacion->arch_foto);
+                            $publicPath = storage_path('app/public/' . $relativePath);
+
+                            if (file_exists($publicPath)) {
+                                $photoUrl = asset('storage/' . $relativePath);
+                                \Log::info('Foto encontrada y URL generada:', [
+                                    'user_id' => $u->id,
+                                    'url' => $photoUrl
+                                ]);
+                            } else {
+                                \Log::info('Archivo no existe en storage:', [
+                                    'user_id' => $u->id,
+                                    'path' => $publicPath
+                                ]);
+                            }
+                        } else {
+                            \Log::info('No hay documentación o foto para el usuario:', [
+                                'user_id' => $u->id,
+                                'sol_docs_id' => $u->sol_docs_id
+                            ]);
+                        }
+                    } else {
+                        \Log::info('Usuario no tiene sol_docs_id:', ['user_id' => $u->id]);
+                    }
+
+                    return [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'photo_url' => $photoUrl
+                    ];
+                });
+
                 return [
                     'id' => $conversation->id,
                     'is_group' => $conversation->is_group,
                     'latest_message' => $conversation->latestMessage,
-                    'users' => $conversation->users->map(function ($u) {
-                        return [
-                            'id' => $u->id,
-                            'name' => $u->name
-                        ];
-                    }),
+                    'users' => $processedUsers,
                     'title' => $conversation->is_group ? $conversation->title : ($otherUser ? $otherUser->name : 'Conversación'),
                     'unread_count' => $unreadCount,
                     'last_read_at' => $lastReadAt
                 ];
             });
+
+        \Log::info('Conversaciones retornadas:', ['count' => count($conversations)]);
 
         return response()->json($conversations);
     } catch (\Exception $e) {

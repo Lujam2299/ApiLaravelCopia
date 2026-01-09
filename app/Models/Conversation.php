@@ -13,16 +13,26 @@ class Conversation extends Model
     protected $fillable = ['title', 'is_group'];
 
     public function users()
-    {
-        return $this->belongsToMany(User::class, 'conversation_user', 'conversation_id', 'api_user_id')
-                    ->withPivot('last_read_at')
-                    ->withTimestamps();
-    }
+{
+    return $this->belongsToMany(
+        User::class,           // modelo relacionado
+        'conversation_user',   // tabla pivote
+        'conversation_id',     // clave foránea local (en la pivote)
+        'api_user_id'          // clave foránea del usuario (en la pivote)
+    )
+    ->withPivot('last_read_at')
+    ->withTimestamps();
+}
 
-    public function messages()
-    {
-        return $this->hasMany(Message::class);
-    }
+public function messages()
+{
+    return $this->hasMany(Message::class);
+}
+
+public function latestMessage()
+{
+    return $this->hasOne(Message::class)->latestOfMany();
+}
 
     public function scopeWithLastReadAt($query, $userId)
     {
@@ -33,11 +43,5 @@ class Conversation extends Model
                     ->where('conversation_user.user_id', '=', $userId);
             })
             ->addSelect('conversation_user.last_read_at');
-    }
-
-    public function latestMessage()
-    {
-        return $this->hasOne(Message::class)
-                    ->latest();
     }
 }

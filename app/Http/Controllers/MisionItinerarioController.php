@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Mision;
+use App\Models\Misiones;
 use Illuminate\Support\Carbon;
 
 class MisionItinerarioController extends Controller
@@ -19,7 +19,7 @@ class MisionItinerarioController extends Controller
             'ubicacion' => 'nullable|string|max:255'
         ]);
 
-        $mision = Mision::findOrFail($mision_id);
+        $mision = Misiones::findOrFail($mision_id);
         $currentUser = $request->user();
 
         // Verificar que la misión esté activa
@@ -40,7 +40,7 @@ class MisionItinerarioController extends Controller
 
         // Obtener agentes asignados de forma segura
         $agents = $this->getAgentesFromMision($mision);
-        
+
         if (!in_array($request->user_id, $agents)) {
             return response()->json([
                 'success' => false,
@@ -61,10 +61,10 @@ class MisionItinerarioController extends Controller
 
         // Obtener itinerarios existentes de forma segura
         $itinerarios = $this->getItinerariosFromMision($mision);
-        
+
         // Buscar o crear entrada para el usuario
         $userIndex = $this->findUserIndexInItinerarios($itinerarios, $request->user_id);
-        
+
         if ($userIndex !== false) {
             // Agregar evento al usuario existente
             $itinerarios[$userIndex]['eventos'][] = $evento;
@@ -93,7 +93,7 @@ class MisionItinerarioController extends Controller
     // Obtener itinerarios de un usuario específico
     public function show($mision_id, $user_id)
     {
-        $mision = Mision::findOrFail($mision_id);
+        $mision = Misiones::findOrFail($mision_id);
         $currentUser = auth()->user();
 
         // Verificar que la misión esté activa
@@ -137,7 +137,7 @@ class MisionItinerarioController extends Controller
     // Obtener todos los itinerarios de la misión (solo para administradores)
     public function index($mision_id)
     {
-        $mision = Mision::findOrFail($mision_id);
+        $mision = Misiones::findOrFail($mision_id);
         $currentUser = auth()->user();
 
         // Solo administradores pueden ver todos los itinerarios
@@ -149,7 +149,7 @@ class MisionItinerarioController extends Controller
         }
 
         $itinerarios = $this->getItinerariosFromMision($mision);
-        
+
         // Ordenar todos los itinerarios
         $itinerarios = $this->sortItinerarios($itinerarios);
 
@@ -160,22 +160,22 @@ class MisionItinerarioController extends Controller
     }
 
     // Métodos auxiliares protegidos
-    protected function getAgentesFromMision(Mision $mision): array
+    protected function getAgentesFromMision(Misiones $mision): array
     {
         if (is_array($mision->agentes_id)) {
             return $mision->agentes_id;
         }
-        
+
         $decoded = json_decode($mision->agentes_id, true);
         return is_array($decoded) ? $decoded : [];
     }
 
-    protected function getItinerariosFromMision(Mision $mision): array
+    protected function getItinerariosFromMision(Misiones $mision): array
     {
         if (is_array($mision->itinerarios)) {
             return $mision->itinerarios;
         }
-        
+
         $decoded = json_decode($mision->itinerarios, true);
         return is_array($decoded) ? $decoded : [];
     }
@@ -201,7 +201,7 @@ class MisionItinerarioController extends Controller
                 });
             }
         }
-        
+
         return $itinerarios;
     }
 

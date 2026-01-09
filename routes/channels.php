@@ -1,15 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 
-Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
-    // Verificar si el usuario pertenece a la conversación
-    $conversation = \App\Models\Conversation::find($conversationId);
+Broadcast::channel('conversacion.{id}', function ($user, $id) {
+    \Log::info('API - Autorización canal conversacion: ' . $id, [
+        'user_id' => $user->id,
+        'user_model' => get_class($user),
+        'user_conversations' => $user->conversations->pluck('id')->toArray(),
+        'target_conversation' => $id,
+        'has_access' => $user->conversations->pluck('id')->contains($id)
+    ]);
 
-    if (!$conversation) {
-        return false;
-    }
-
-    // Verificar si el usuario es parte de la conversación
-    return $conversation->users()->where('user_id', $user->id)->exists();
+    return $user->conversations->pluck('id')->contains($id);
 });

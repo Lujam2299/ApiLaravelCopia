@@ -76,11 +76,16 @@ class User extends Authenticatable
      * Las conversaciones a las que pertenece el usuario
      */
     public function conversations()
-    {
-        return $this->belongsToMany(Conversation::class, 'conversation_user', 'api_user_id', 'conversation_id')
-                    ->withPivot('last_read_at')
-                    ->withTimestamps();
-    }
+{
+    return $this->belongsToMany(
+        Conversation::class,
+        'conversation_user',
+        'api_user_id',             // FK hacia este modelo (User del API)
+        'conversation_id'          // FK hacia Conversation
+    )
+        ->withPivot('last_read_at')
+        ->withTimestamps();
+}
 
     /**
      * Los mensajes que ha enviado el usuario
@@ -92,5 +97,18 @@ class User extends Authenticatable
      public function turnos()
     {
         return $this->hasMany(Turno::class, 'User_id');
+    }
+
+    public function getPhotoUrlAttribute()
+    {
+        if ($this->documentacionAltas && $this->documentacionAltas->arch_foto) {
+            $relativePath = str_replace(['storage/', 'storage\\'], '', $this->documentacionAltas->arch_foto);
+            $publicPath = storage_path('app/public/' . $relativePath);
+
+            if (file_exists($publicPath)) {
+                return asset('storage/' . $relativePath);
+            }
+        }
+        return null;
     }
 }

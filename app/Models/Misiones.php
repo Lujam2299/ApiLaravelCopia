@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Mision extends Model
+class Misiones extends Model
 {
     protected $table = 'misiones';
 
@@ -39,7 +39,9 @@ class Mision extends Model
         'datos_aeropuerto' => 'array',
         'datos_vuelo' => 'array',
         'datos_hospital' => 'array',
-        'datos_embajada' => 'array'
+        'datos_embajada' => 'array',
+        'fecha_inicio' => 'date',
+        'fecha_fin' => 'date',
     ];
 
 
