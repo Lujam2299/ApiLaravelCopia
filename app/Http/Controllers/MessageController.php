@@ -106,9 +106,6 @@ class MessageController extends Controller
             'message_id' => $event->message->id,
         ]);
 
-        // Quitar toOthers() para que se envíe a todos
-        event(new MessageSent($message));
-
         \Log::info('Broadcast sent without toOthers');
 
         return response()->json([
