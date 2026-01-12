@@ -21,9 +21,14 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        //
-    }
-  
+    public function boot()
+{
+    \Event::listen(function (\App\Events\MessageSent $event) {
+        \Log::info('MessageSent event fired', [
+            'message_id' => $event->message->id,
+            'conversation_id' => $event->message->conversation_id,
+        ]);
+    });
+}
+
 }

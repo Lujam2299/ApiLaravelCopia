@@ -10,6 +10,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -19,8 +20,21 @@ Route::get('/test', function () { return response()->json(['message' => 'OK']); 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/broadcasting/auth', function (Request $request) {
-        // Verificar si el usuario está autenticado
-        if ($request->user()) {
+    // Verificar si el usuario está autenticado
+    if (!$request->user()) {
+        abort(403, 'Forbidden');
+    }
+
+    $channelName = $request->channel_name;
+
+    // Verificar si es un canal de conversación
+    if (Str::startsWith($channelName, 'private-conversacion.')) {
+        $conversationId = Str::after($channelName, 'private-conversacion.');
+
+        // Verificar que el usuario tenga acceso a la conversación
+        $hasAccess = $request->user()->conversations->pluck('id')->contains($conversationId);
+
+        if ($hasAccess) {
             return response()->json([
                 'channel_data' => [
                     'user_id' => $request->user()->id,
@@ -32,8 +46,13 @@ Route::middleware('auth:sanctum')->group(function () {
             ]);
         }
 
-        abort(403, 'Forbidden');
-    });
+        // Si no tiene acceso, prohibido
+        abort(403, 'No tienes acceso a esta conversación');
+    }
+
+    // Para otros canales privados, puedes agregar lógica adicional
+    abort(403, 'Canal no autorizado');
+})->middleware('auth:sanctum');
 
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);

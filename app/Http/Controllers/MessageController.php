@@ -91,9 +91,25 @@ class MessageController extends Controller
         // Cargar relaciones necesarias
         $message->load('user');
 
+        \Log::info('Message created for broadcast', [
+            'message_id' => $message->id,
+            'user_id' => $message->user_id,
+            'conversation_id' => $message->conversation_id,
+            'user_name' => $message->user->name,
+        ]);
 
-        // Disparar evento de WebSocket
-        broadcast(new MessageSent($message))->toOthers();
+        // Disparar evento de WebSocket - SIN toOthers()
+        $event = new MessageSent($message);
+
+        \Log::info('MessageSent event created', [
+            'event_class' => get_class($event),
+            'message_id' => $event->message->id,
+        ]);
+
+        // Quitar toOthers() para que se envíe a todos
+        event(new MessageSent($message));
+
+        \Log::info('Broadcast sent without toOthers');
 
         return response()->json([
             'status' => 'success',
