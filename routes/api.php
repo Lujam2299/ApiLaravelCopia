@@ -19,7 +19,7 @@ Route::get('/test', function () { return response()->json(['message' => 'OK']); 
 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/broadcasting/auth', function (Request $request) {
+    /*Route::post('/broadcasting/auth', function (Request $request) {
     // Verificar si el usuario está autenticado
     if (!$request->user()) {
         abort(403, 'Forbidden');
@@ -52,7 +52,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Para otros canales privados, puedes agregar lógica adicional
     abort(403, 'Canal no autorizado');
-})->middleware('auth:sanctum');
+})->middleware('auth:sanctum');*/
+
+    Route::post('/broadcasting/auth', function (Request $request) {
+        // Asegura que el usuario esté autenticado
+        if (! auth()->check()) {
+            abort(403, 'Unauthenticated.');
+        }
+
+        // Devuelve la respuesta de autenticación
+        return \Illuminate\Support\Facades\Broadcast::auth($request);
+    })->middleware('auth:sanctum');
 
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);

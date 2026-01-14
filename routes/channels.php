@@ -14,6 +14,6 @@ Broadcast::channel('conversacion.{id}', function ($user, $id) {
 
     return $user->conversations->pluck('id')->contains($id);
 });
-Broadcast::channel('public-conversacion.{id}', function ($user, $id) {
+/*Broadcast::channel('public-conversacion.{id}', function ($user, $id) {
     return true; // Todos pueden acceder (solo para pruebas)
-});
+});*/

@@ -76,68 +76,108 @@ class MessageController extends Controller
         ]);
     }
     public function sendMessage(Request $request)
-    {
-        $request->validate([
-            'conversation_id' => 'required|exists:conversations,id',
-            'body' => 'required|string'
-        ]);
+{
+    $request->validate([
+        'conversation_id' => 'required|exists:conversations,id',
+        'body' => 'required|string'
+    ]);
 
-        $message = Message::create([
-            'conversation_id' => $request->conversation_id,
-            'user_id' => Auth::id(),
-            'body' => $request->body
-        ]);
+    $message = Message::create([
+        'conversation_id' => $request->conversation_id,
+        'user_id' => Auth::id(),
+        'body' => $request->body
+    ]);
 
-        // Cargar relaciones necesarias
-        $message->load('user');
+    // Cargar relaciones necesarias
+    $message->load('user');
 
-        \Log::info('Message created for broadcast', [
-            'message_id' => $message->id,
-            'user_id' => $message->user_id,
-            'conversation_id' => $message->conversation_id,
-            'user_name' => $message->user->name,
-        ]);
+    \Log::info('Message created for broadcast', [
+        'message_id' => $message->id,
+        'user_id' => $message->user_id,
+        'conversation_id' => $message->conversation_id,
+        'user_name' => $message->user->name,
+    ]);
 
-        // Disparar evento de WebSocket - SIN toOthers()
-        $event = new MessageSent($message);
+    // ✅ ACTUALIZAR EL UNREAD_COUNT PARA LOS DEMÁS USUARIOS EN LA CONVERSACIÓN
+    $this->incrementUnreadCount($message->conversation, $message->user);
 
-        \Log::info('MessageSent event created', [
-            'event_class' => get_class($event),
-            'message_id' => $event->message->id,
-        ]);
+    // ✅ ACTUALIZAR updated_at DE LA CONVERSAIÓN
+    $message->conversation->touch(); // Esto actualiza el updated_at
 
-        \Log::info('Broadcast sent without toOthers');
+    // Disparar evento de WebSocket - SIN toOthers()
+    $event = new MessageSent($message);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => $message
-        ]);
+    \Log::info('MessageSent event created', [
+        'event_class' => get_class($event),
+        'message_id' => $event->message->id,
+    ]);
+
+    \Log::info('Broadcast sent without toOthers');
+
+    return response()->json([
+        'status' => 'success',
+        'message' => $message
+    ]);
+}
+
+// ✅ NUEVA FUNCIÓN: Incrementar unread_count para otros usuarios
+private function incrementUnreadCount($conversation, $senderUser)
+{
+    // Obtener todos los usuarios de la conversación excepto el remitente
+    $recipientIds = $conversation->users()
+        ->where('users.id', '!=', $senderUser->id)
+        ->pluck('users.id'); // Asegúrate de usar 'users.id' aquí
+
+    if ($recipientIds->isNotEmpty()) {
+        // Incrementar el unread_count para cada destinatario
+        DB::table('conversation_user')
+            ->whereIn('api_user_id', $recipientIds)
+            ->where('conversation_id', $conversation->id)
+            ->increment('unread_count', 1); // Incrementar en 1
     }
-
+}
 
     public function getMessages($conversationId)
-    {
-        // Verificar acceso a la conversación
-        $conversation = Auth::user()->conversations()
-            ->where('conversations.id', $conversationId)
-            ->firstOrFail();
+{
+    // Verificar acceso a la conversación
+    $conversation = Auth::user()->conversations()
+        ->where('conversations.id', $conversationId)
+        ->firstOrFail();
 
-        // Obtener mensajes ordenados
-        $messages = $conversation->messages()
-            ->with(['user' => function ($query) {
-                $query->select('id', 'name'); // Solo datos básicos del usuario
-            }])
-            ->orderBy('created_at', 'asc')
-            ->get();
+    // Obtener mensajes ordenados
+    $messages = $conversation->messages()
+        ->with(['user' => function ($query) {
+            $query->select('id', 'name'); // Solo datos básicos del usuario
+        }])
+        ->orderBy('created_at', 'asc')
+        ->get();
 
-        // Marcar mensajes como leídos
-        $conversation->messages()
-            ->whereNull('read_at')
-            ->where('user_id', '!=', Auth::id())
-            ->update(['read_at' => now()]);
+    // Marcar mensajes como leídos para el usuario actual
+    $conversation->messages()
+        ->whereNull('read_at')
+        ->where('user_id', '!=', Auth::id()) // Solo mensajes del otro usuario
+        ->update(['read_at' => now()]);
 
-        return response()->json($messages);
-    }
+    // ✅ ACTUALIZAR EL CONTADOR DE MENSAJES NO LEÍDOS EN LA TABLA PIVOTE
+    $this->updateUnreadCount($conversation, Auth::user());
+
+    return response()->json($messages);
+}
+
+// ✅ NUEVA FUNCIÓN: Actualizar el unread_count en la tabla pivote
+private function updateUnreadCount($conversation, $user)
+{
+    $lastReadAt = now();
+
+    // Actualizar el last_read_at en la tabla pivote
+    DB::table('conversation_user')
+        ->where('conversation_id', $conversation->id)
+        ->where('api_user_id', $user->id)
+        ->update([
+            'last_read_at' => $lastReadAt,
+            'unread_count' => 0 // Resetear el contador ya que marco como leídos
+        ]);
+}
 
     public function markAsRead(Message $message)
     {
@@ -156,13 +196,14 @@ public function getConversations(Request $request)
         \Log::info('Usuario actual en getConversations:', ['user_id' => $user->id]);
 
         $conversations = $user->conversations()
-            ->with(['users:id,name,sol_docs_id'])
-            ->orderByDesc(
-                Message::select('created_at')
-                    ->whereColumn('conversation_id', 'conversations.id')
-                    ->latest()
-                    ->take(1)
-            )
+            ->with([
+                'users' => function($query) { // ✅ CORRECTO: Sin columnas en el nombre de la relación
+                    $query->select('id', 'name', 'sol_docs_id'); // ✅ CORRECTO: select() dentro del closure
+                    $query->withPivot(['last_read_at', 'unread_count']); // ✅ Cargar los campos del pivote
+                },
+                'latestMessage'
+            ])
+            ->orderByDesc('updated_at') // ✅ Ordenar por updated_at
             ->get()
             ->map(function ($conversation) use ($user) {
                 // Cargar la relación users si no está cargada
@@ -178,26 +219,14 @@ public function getConversations(Request $request)
                 // Obtener el otro usuario (excluyendo al usuario actual)
                 $otherUser = $conversation->users->firstWhere('id', '!=', $user->id);
 
-                // Obtener last_read_at desde la tabla pivote
-                $pivotData = DB::table('conversation_user')
-                    ->where('conversation_id', $conversation->id)
-                    ->where('api_user_id', $user->id)
-                    ->first();
+                // Obtener el pivot del usuario actual en esta conversación
+                $currentUserPivot = $conversation->users->first(function ($u) use ($user) {
+                    return $u->id === $user->id;
+                })?->pivot;
 
-                $lastReadAt = $pivotData ? $pivotData->last_read_at : null;
-
-                // Contar mensajes no leídos
-                $unreadCount = 0;
-                if ($lastReadAt) {
-                    $unreadCount = $conversation->messages()
-                        ->where('user_id', '!=', $user->id)
-                        ->where('created_at', '>', $lastReadAt)
-                        ->count();
-                } else {
-                    $unreadCount = $conversation->messages()
-                        ->where('user_id', '!=', $user->id)
-                        ->count();
-                }
+                // ✅ Usar los valores directamente del modelo pivote
+                $lastReadAt = $currentUserPivot->last_read_at ?? null;
+                $unreadCount = $currentUserPivot->unread_count ?? 0; // ✅ Valor del modelo pivote
 
                 // Procesar usuarios para incluir la URL de la foto
                 $processedUsers = $conversation->users->map(function ($u) {
@@ -251,8 +280,12 @@ public function getConversations(Request $request)
                     'latest_message' => $conversation->latestMessage,
                     'users' => $processedUsers,
                     'title' => $conversation->is_group ? $conversation->title : ($otherUser ? $otherUser->name : 'Conversación'),
-                    'unread_count' => $unreadCount,
-                    'last_read_at' => $lastReadAt
+                    'updated_at' => $conversation->updated_at, // Asegurar que se incluya
+                    // ✅ CAMBIO IMPORTANTE: Incluir el campo pivot con unread_count del modelo
+                    'pivot' => [
+                        'last_read_at' => $lastReadAt,
+                        'unread_count' => $unreadCount // ✅ Valor del modelo pivote
+                    ]
                 ];
             });
 

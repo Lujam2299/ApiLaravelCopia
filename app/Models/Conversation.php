@@ -20,7 +20,7 @@ class Conversation extends Model
         'conversation_id',     // clave foránea local (en la pivote)
         'api_user_id'          // clave foránea del usuario (en la pivote)
     )
-    ->withPivot('last_read_at')
+     ->withPivot(['last_read_at', 'unread_count'])
     ->withTimestamps();
 }
 
