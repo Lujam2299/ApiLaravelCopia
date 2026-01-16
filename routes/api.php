@@ -42,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de ubicación
     Route::post('/locations', [LocationController::class, 'store']);
     Route::post('/realtime-positions', [RealtimePositionController::class, 'store']);
+    Route::get('/realtime-position/user/{id}/recent', [RealtimePositionController::class, 'getUserRecentPositions']);
+
 
     // Mensajería
     Route::get('/messages/search-users', [MessageController::class, 'searchUsers']);

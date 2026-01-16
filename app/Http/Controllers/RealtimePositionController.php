@@ -43,4 +43,21 @@ class RealtimePositionController extends Controller
 
         return response()->json(['status' => 'success', 'position' => $position]);
     }
+
+    public function getUserRecentPositions($id, Request $request)
+    {
+        $periodo = Carbon::now()->subHours(24);
+
+        $positions = RealtimePosition::where('user_id', $id)
+            ->where('recorded_at', '>', $periodo)
+            ->orderBy('recorded_at', 'desc')
+            ->select('latitude', 'longitude', 'recorded_at', 'device_id')
+            ->get();
+
+        return response()->json([
+            'user_id' => $id,
+            'positions' => $positions,
+            'total' => $positions->count()
+        ]);
+    }
 }
