@@ -9,6 +9,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
+use App\Http\Controllers\RealtimePositionController;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -19,41 +20,6 @@ Route::get('/test', function () { return response()->json(['message' => 'OK']); 
 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
-    /*Route::post('/broadcasting/auth', function (Request $request) {
-    // Verificar si el usuario está autenticado
-    if (!$request->user()) {
-        abort(403, 'Forbidden');
-    }
-
-    $channelName = $request->channel_name;
-
-    // Verificar si es un canal de conversación
-    if (Str::startsWith($channelName, 'private-conversacion.')) {
-        $conversationId = Str::after($channelName, 'private-conversacion.');
-
-        // Verificar que el usuario tenga acceso a la conversación
-        $hasAccess = $request->user()->conversations->pluck('id')->contains($conversationId);
-
-        if ($hasAccess) {
-            return response()->json([
-                'channel_data' => [
-                    'user_id' => $request->user()->id,
-                    'user_info' => [
-                        'id' => $request->user()->id,
-                        'name' => $request->user()->name,
-                    ]
-                ]
-            ]);
-        }
-
-        // Si no tiene acceso, prohibido
-        abort(403, 'No tienes acceso a esta conversación');
-    }
-
-    // Para otros canales privados, puedes agregar lógica adicional
-    abort(403, 'Canal no autorizado');
-})->middleware('auth:sanctum');*/
-
     Route::post('/broadcasting/auth', function (Request $request) {
         // Asegura que el usuario esté autenticado
         if (! auth()->check()) {
@@ -75,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de ubicación
     Route::post('/locations', [LocationController::class, 'store']);
+    Route::post('/realtime-positions', [RealtimePositionController::class, 'store']);
 
     // Mensajería
     Route::get('/messages/search-users', [MessageController::class, 'searchUsers']);
