@@ -10,8 +10,12 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
 use App\Events\MessageSent;
+use App\Events\MessagesRead;
+use App\Events\ConversationUpdated;
+use App\Events\ToastNotification;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
@@ -71,6 +75,7 @@ class MessageController extends Controller
         }
 
         return response()->json([
+            'id' => $conversation->id,
             'conversation_id' => $conversation->id,
             'messages' => $conversation->messages()->with('user')->get()
         ]);
@@ -82,8 +87,12 @@ class MessageController extends Controller
         'body' => 'required|string'
     ]);
 
+    $conversation = Auth::user()->conversations()
+        ->where('conversations.id', $request->conversation_id)
+        ->firstOrFail();
+
     $message = Message::create([
-        'conversation_id' => $request->conversation_id,
+        'conversation_id' => $conversation->id,
         'user_id' => Auth::id(),
         'body' => $request->body
     ]);
@@ -104,15 +113,27 @@ class MessageController extends Controller
     // ✅ ACTUALIZAR updated_at DE LA CONVERSAIÓN
     $message->conversation->touch(); // Esto actualiza el updated_at
 
-    // Disparar evento de WebSocket - SIN toOthers()
-    $event = new MessageSent($message);
+    $recipientIds = $conversation->users()
+        ->pluck('users.id')
+        ->map(fn ($id) => (int) $id)
+        ->all();
 
-    \Log::info('MessageSent event created', [
-        'event_class' => get_class($event),
-        'message_id' => $event->message->id,
-    ]);
+    broadcast(new ConversationUpdated($message, $recipientIds));
 
-    \Log::info('Broadcast sent without toOthers');
+    $toastRecipientIds = array_values(array_filter(
+        $recipientIds,
+        fn ($id) => $id !== (int) Auth::id()
+    ));
+
+    if ($toastRecipientIds !== []) {
+        broadcast(new ToastNotification($toastRecipientIds, [
+            'icon' => 'info',
+            'title' => 'Nuevo mensaje de ' . ($message->user?->name ?? 'un participante'),
+            'text' => Str::limit($message->body, 120),
+            'url' => '/mensajes/' . $message->conversation_id,
+            'key' => 'message:' . $message->id,
+        ]));
+    }
 
     return response()->json([
         'status' => 'success',
@@ -153,10 +174,22 @@ private function incrementUnreadCount($conversation, $senderUser)
         ->get();
 
     // Marcar mensajes como leídos para el usuario actual
-    $conversation->messages()
+    $readMessageIds = $conversation->messages()
         ->whereNull('read_at')
-        ->where('user_id', '!=', Auth::id()) // Solo mensajes del otro usuario
-        ->update(['read_at' => now()]);
+        ->where('user_id', '!=', Auth::id())
+        ->pluck('id');
+
+    if ($readMessageIds->isNotEmpty()) {
+        Message::whereIn('id', $readMessageIds)->update(['read_at' => now()]);
+        $messages = $messages->map(function ($message) use ($readMessageIds) {
+            if ($readMessageIds->contains($message->id)) {
+                $message->read_at = now();
+            }
+            return $message;
+        });
+
+        broadcast(new MessagesRead((int) $conversation->id, (int) Auth::id()));
+    }
 
     // ✅ ACTUALIZAR EL CONTADOR DE MENSAJES NO LEÍDOS EN LA TABLA PIVOTE
     $this->updateUnreadCount($conversation, Auth::user());
@@ -181,12 +214,19 @@ private function updateUnreadCount($conversation, $user)
 
     public function markAsRead(Message $message)
     {
-        if ($message->conversation->users->contains(Auth::id())) {
-            $message->markAsRead();
-            return response()->json(['success' => true]);
+        $hasAccess = Auth::user()->conversations()
+            ->where('conversations.id', $message->conversation_id)
+            ->exists();
+
+        abort_unless($hasAccess, 403);
+
+        if ($message->user_id !== Auth::id() && $message->read_at === null) {
+            $message->update(['read_at' => now()]);
+            $this->updateUnreadCount($message->conversation, Auth::user());
+            broadcast(new MessagesRead((int) $message->conversation_id, (int) Auth::id()));
         }
 
-        return response()->json(['error' => 'Unauthorized'], 403);
+        return response()->json(['success' => true]);
     }
 public function getConversations(Request $request)
 {
