@@ -23,6 +23,7 @@ class TurnosController extends Controller
             $rules = [
                 'Placas_unidad' => 'required|string|max:20',
                 'Tipo' => 'required|in:Entrada,Salida',
+                'client_operation_id' => 'nullable|string|max:100',
             ];
 
             // Reglas condicionales
@@ -44,6 +45,19 @@ class TurnosController extends Controller
 
             $validatedData = $request->validate($rules);
 
+            if (!empty($validatedData['client_operation_id'])) {
+                $existing = turno::query()
+                    ->where('User_id', $user->id)
+                    ->where('client_operation_id', $validatedData['client_operation_id'])
+                    ->first();
+                if ($existing) {
+                    return response()->json([
+                        'message' => 'El turno ya había sido sincronizado',
+                        'data' => $existing,
+                    ]);
+                }
+            }
+
             // Procesar archivos
             $fileField = $request->input('Tipo') === 'Entrada' ? 'Evidencia_inicio' : 'Evidencia_final';
             $filePath = $request->file($fileField)->store('evidencias', 'public');
@@ -56,6 +70,7 @@ class TurnosController extends Controller
                 'Placas_unidad' => $validatedData['Placas_unidad'],
                 'Tipo' => $validatedData['Tipo'],
                 $fileField => $filePath
+                ,'client_operation_id' => $validatedData['client_operation_id'] ?? null
             ];
 
             // Asignar campos dinámicamente

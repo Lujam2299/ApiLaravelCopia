@@ -47,7 +47,8 @@ class gastos extends Model
         'Tipo',
         'Km',
         'Gasolina_antes_carga',
-        'Gasolina_despues_carga'
+        'Gasolina_despues_carga',
+        'client_operation_id'
     ];
 
     protected $casts = [

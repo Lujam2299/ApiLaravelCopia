@@ -26,6 +26,7 @@ class turno extends Model
         'Rayas_gasolina_final',
         'Evidencia_inicio',
         'Evidencia_final',
+        'client_operation_id',
     ];
 
 

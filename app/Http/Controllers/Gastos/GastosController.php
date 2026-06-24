@@ -30,7 +30,18 @@ class GastosController extends Controller
                 'Km' => 'nullable|numeric',
                 'Gasolina_antes_carga' => 'nullable|numeric',
                 'Gasolina_despues_carga' => 'nullable|numeric'
+                ,'client_operation_id' => 'nullable|string|max:100'
             ]);
+
+            if (!empty($validated['client_operation_id'])) {
+                $existing = gastos::query()
+                    ->where('user_id', $user->id)
+                    ->where('client_operation_id', $validated['client_operation_id'])
+                    ->first();
+                if ($existing) {
+                    return response()->json(['success' => true, 'data' => $existing]);
+                }
+            }
 
             $path = $request->file('Evidencia')->store('evidencias', 'public');
 
@@ -42,6 +53,7 @@ class GastosController extends Controller
                 'Hora' => $validated['Hora'],
                 'Evidencia' => $path,
                 'Tipo' => $validated['Tipo'],
+                'client_operation_id' => $validated['client_operation_id'] ?? null,
             ];
 
             // Solo agregar campos si son Gasolina
@@ -58,6 +70,11 @@ class GastosController extends Controller
                 'data' => $gasto
             ], 201);
 
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error al guardar gasto: ' . $e->getMessage());
             return response()->json([
