@@ -77,28 +77,38 @@ class MessageController extends Controller
         return response()->json([
             'id' => $conversation->id,
             'conversation_id' => $conversation->id,
-            'messages' => $conversation->messages()->with('user')->get()
+            'messages' => $conversation->messages()->with(['user', 'parent.user'])->get()
         ]);
     }
     public function sendMessage(Request $request)
 {
     $request->validate([
         'conversation_id' => 'required|exists:conversations,id',
-        'body' => 'required|string'
+        'body' => 'required|string|max:1000',
+        'parent_id' => 'nullable|integer|exists:messages,id',
     ]);
 
     $conversation = Auth::user()->conversations()
         ->where('conversations.id', $request->conversation_id)
         ->firstOrFail();
 
+    if ($request->filled('parent_id')) {
+        $belongsToConversation = Message::query()
+            ->whereKey($request->parent_id)
+            ->where('conversation_id', $conversation->id)
+            ->exists();
+        abort_unless($belongsToConversation, 422, 'El mensaje respondido no pertenece a esta conversación.');
+    }
+
     $message = Message::create([
         'conversation_id' => $conversation->id,
         'user_id' => Auth::id(),
-        'body' => $request->body
+        'body' => trim($request->body),
+        'parent_id' => $request->parent_id,
     ]);
 
     // Cargar relaciones necesarias
-    $message->load('user');
+    $message->load(['user', 'parent.user']);
 
     \Log::info('Message created for broadcast', [
         'message_id' => $message->id,
@@ -168,9 +178,7 @@ private function incrementUnreadCount($conversation, $senderUser)
 
     // Obtener mensajes ordenados
     $messages = $conversation->messages()
-        ->with(['user' => function ($query) {
-            $query->select('id', 'name'); // Solo datos básicos del usuario
-        }])
+        ->with(['user:id,name', 'parent.user:id,name'])
         ->orderBy('created_at', 'asc')
         ->get();
 
