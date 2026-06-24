@@ -201,31 +201,7 @@ public function user(Request $request)
         'documentacion_altas' => $user->documentacionAltas
     ]);
 
-    // Obtener la URL de la foto si existe
-    $photoUrl = null;
-    if ($user->documentacionAltas && $user->documentacionAltas->arch_foto) {
-        \Log::info('Foto encontrada en documentación: ', ['arch_foto' => $user->documentacionAltas->arch_foto]);
-
-        // Convertir la ruta de la base de datos a la ruta pública
-        $relativePath = str_replace(['storage/', 'storage\\'], '', $user->documentacionAltas->arch_foto);
-
-        // Verificar si el archivo existe en storage/app/public
-        $publicPath = storage_path('app/public/' . $relativePath);
-
-        \Log::info('Ruta pública del archivo: ', ['path' => $publicPath]);
-
-        if (file_exists($publicPath)) {
-            \Log::info('Archivo existe en storage/app/public');
-
-            // Generar URL usando asset (esto usará la ruta pública)
-            $photoUrl = asset('storage/' . $relativePath);
-            \Log::info('URL generada: ', ['url' => $photoUrl]);
-        } else {
-            \Log::info('Archivo no existe en storage/app/public');
-        }
-    } else {
-        \Log::info('No hay foto en documentación altas o no hay relación');
-    }
+    $photoUrl = $user->photo_url;
 
     $responseData = [
         'id' => $user->id,

@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 /**
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Conversation> $conversations
@@ -101,14 +102,25 @@ class User extends Authenticatable
 
     public function getPhotoUrlAttribute()
     {
-        if ($this->documentacionAltas && $this->documentacionAltas->arch_foto) {
-            $relativePath = str_replace(['storage/', 'storage\\'], '', $this->documentacionAltas->arch_foto);
-            $publicPath = storage_path('app/public/' . $relativePath);
+        $storedPath = $this->documentacionAltas?->arch_foto;
 
-            if (file_exists($publicPath)) {
-                return asset('storage/' . $relativePath);
-            }
+        if (! $storedPath) {
+            return null;
         }
-        return null;
+
+        $storedPath = str_replace('\\', '/', trim($storedPath));
+
+        if (filter_var($storedPath, FILTER_VALIDATE_URL)) {
+            return $storedPath;
+        }
+
+        $relativePath = preg_replace('#^/?(?:public/)?storage/#', '', $storedPath);
+        $relativePath = ltrim($relativePath ?? '', '/');
+
+        if ($relativePath === '' || ! Storage::disk('public')->exists($relativePath)) {
+            return null;
+        }
+
+        return url(Storage::disk('public')->url($relativePath));
     }
 }

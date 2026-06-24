@@ -10,8 +10,6 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
 use App\Http\Controllers\RealtimePositionController;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -76,16 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('/user-photo/{solicitud_id}', function ($solicitud_id) {
-    $documentacion = App\Models\DocumentacionAltas::find($solicitud_id);
+    $user = App\Models\User::query()
+        ->with('documentacionAltas')
+        ->where('sol_docs_id', $solicitud_id)
+        ->first();
 
-    if ($documentacion && $documentacion->arch_foto) {
-        // Asegurarnos de que la ruta es correcta
-        $photoPath = $documentacion->arch_foto;
-
-        if (Storage::exists($photoPath)) {
-            $url = asset(str_replace('storage/', 'storage/', $photoPath));
-            return response()->json(['photo_url' => $url]);
-        }
+    if ($user?->photo_url) {
+        return response()->json(['photo_url' => $user->photo_url]);
     }
 
     return response()->json(['photo_url' => null], 404);
