@@ -132,6 +132,7 @@ class MessageController extends Controller
             'text' => Str::limit($message->body, 120),
             'url' => '/mensajes/' . $message->conversation_id,
             'key' => 'message:' . $message->id,
+            'conversation_id' => $message->conversation_id,
         ]));
     }
 
