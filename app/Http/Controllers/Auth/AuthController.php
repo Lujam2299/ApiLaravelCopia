@@ -184,6 +184,37 @@ class AuthController extends Controller
         return response()->json(['message' => 'Has cerrado sesión exitosamente.'], 200);
     }
 
+    public function updatePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        ], [
+            'current_password.required' => 'La contraseña actual es obligatoria.',
+            'password.required' => 'La nueva contraseña es obligatoria.',
+            'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
+            'password.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+            'password.letters' => 'La nueva contraseña debe incluir al menos una letra.',
+            'password.numbers' => 'La nueva contraseña debe incluir al menos un número.',
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['La contraseña actual no es correcta.'],
+            ]);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente.',
+        ]);
+    }
+
 public function user(Request $request)
 {
     \Log::info('Entrando al método user del AuthController');

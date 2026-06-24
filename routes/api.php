@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::put('/user/password', [AuthController::class, 'updatePassword']);
 //    Route::get('/user', fn(Request $request) => $request->user());
     Route::get('/user', [AuthController::class, 'user']);
 
