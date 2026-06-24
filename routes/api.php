@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/messages/send', [MessageController::class, 'sendMessage']);
     Route::get('/messages/{conversation}', [MessageController::class, 'getMessages']);
     Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead']);
+    Route::delete('/messages/{message}', [MessageController::class, 'deleteMessage']);
     Route::get('/conversations', [MessageController::class, 'getConversations']);
 
     // Rutas de itinerario - VERSIÓN CORREGIDA

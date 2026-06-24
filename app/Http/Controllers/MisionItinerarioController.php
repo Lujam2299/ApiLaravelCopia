@@ -13,11 +13,22 @@ class MisionItinerarioController extends Controller
     {
         $request->validate([
             'user_id' => 'required|integer|min:1',
-            'fecha' => 'required|date|after_or_equal:today',
+            'fecha' => 'required|date',
             'hora' => 'required|date_format:H:i',
             'descripcion' => 'required|string|max:255',
-            'ubicacion' => 'nullable|string|max:255'
+            'ubicacion' => 'nullable|string|max:255',
+            'client_operation_id' => 'nullable|string|max:100',
+            'client_created_at' => 'nullable|date',
         ]);
+
+        $minimumDate = $request->filled('client_created_at')
+            ? Carbon::parse($request->client_created_at)->startOfDay()
+            : today();
+        abort_if(
+            Carbon::parse($request->fecha)->startOfDay()->lt($minimumDate),
+            422,
+            'La fecha no puede ser anterior a la creación del movimiento.'
+        );
 
         $mision = Misiones::findOrFail($mision_id);
         $currentUser = $request->user();
@@ -48,6 +59,24 @@ class MisionItinerarioController extends Controller
             ], 403);
         }
 
+        $itinerarios = $this->getItinerariosFromMision($mision);
+
+        if ($request->filled('client_operation_id')) {
+            $alreadyStored = collect($itinerarios)
+                ->flatMap(fn ($itinerario) => $itinerario['eventos'] ?? [])
+                ->contains(fn ($evento) =>
+                    ($evento['client_operation_id'] ?? null) === $request->client_operation_id
+                );
+
+            if ($alreadyStored) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'El evento ya había sido sincronizado',
+                    'data' => $this->getUserItinerarios($itinerarios, $request->user_id),
+                ]);
+            }
+        }
+
         // Crear el evento con marca de tiempo
         $evento = [
             'user_id' => (int)$request->user_id,
@@ -55,12 +84,11 @@ class MisionItinerarioController extends Controller
             'hora' => $request->hora,
             'descripcion' => $request->descripcion,
             'ubicacion' => $request->ubicacion ?? null,
+            'client_operation_id' => $request->client_operation_id,
+            'client_created_at' => $request->client_created_at,
             'created_at' => now()->toDateTimeString(),
             'updated_at' => now()->toDateTimeString()
         ];
-
-        // Obtener itinerarios existentes de forma segura
-        $itinerarios = $this->getItinerariosFromMision($mision);
 
         // Buscar o crear entrada para el usuario
         $userIndex = $this->findUserIndexInItinerarios($itinerarios, $request->user_id);

@@ -13,6 +13,7 @@ use App\Events\MessageSent;
 use App\Events\MessagesRead;
 use App\Events\ConversationUpdated;
 use App\Events\ToastNotification;
+use App\Events\MessageDeleted;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -234,6 +235,30 @@ private function updateUnreadCount($conversation, $user)
             $this->updateUnreadCount($message->conversation, Auth::user());
             broadcast(new MessagesRead((int) $message->conversation_id, (int) Auth::id()));
         }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function deleteMessage(Message $message)
+    {
+        $hasAccess = Auth::user()->conversations()
+            ->where('conversations.id', $message->conversation_id)
+            ->exists();
+
+        abort_unless($hasAccess, 403);
+        abort_unless((int) $message->user_id === (int) Auth::id(), 403, 'Solo puedes eliminar tus propios mensajes.');
+        abort_unless(
+            $message->created_at?->greaterThanOrEqualTo(now()->subMinutes(15)),
+            422,
+            'El tiempo permitido para eliminar este mensaje ha expirado.'
+        );
+
+        $conversationId = (int) $message->conversation_id;
+        $messageId = (int) $message->id;
+        $message->delete();
+        $message->conversation?->touch();
+
+        broadcast(new MessageDeleted($conversationId, $messageId));
 
         return response()->json(['success' => true]);
     }
