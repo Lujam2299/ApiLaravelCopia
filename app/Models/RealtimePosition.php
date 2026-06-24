@@ -14,6 +14,7 @@ class RealtimePosition extends Model
         'latitude',
         'longitude',
         'device_id',
+        'client_operation_id',
         'recorded_at',
     ];
 

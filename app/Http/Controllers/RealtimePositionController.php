@@ -19,7 +19,24 @@ class RealtimePositionController extends Controller
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
             'device_id' => 'nullable|string|max:255',
+            'recorded_at' => 'nullable|date',
+            'client_operation_id' => 'nullable|string|max:100',
         ]);
+
+        if ($request->filled('client_operation_id')) {
+            $existingPosition = RealtimePosition::query()
+                ->where('user_id', Auth::id())
+                ->where('client_operation_id', $request->client_operation_id)
+                ->first();
+
+            if ($existingPosition) {
+                return response()->json([
+                    'status' => 'success',
+                    'position' => $existingPosition,
+                    'duplicate' => true,
+                ]);
+            }
+        }
 
         Log::info('RealtimePositionController@store: Validación pasada');
 
@@ -28,7 +45,8 @@ class RealtimePositionController extends Controller
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'device_id' => $request->device_id,
-            'recorded_at' => now(),
+            'client_operation_id' => $request->client_operation_id,
+            'recorded_at' => $request->recorded_at ?? now(),
         ]);
 
         Log::info('RealtimePositionController@store: Ubicación guardada en DB', ['position_id' => $position->id, 'user_id' => $position->user_id]);
