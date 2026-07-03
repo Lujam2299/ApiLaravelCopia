@@ -3,21 +3,20 @@
 namespace App\Http\Controllers\Gastos;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\gastos;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
-
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class GastosController extends Controller
 {
- public function guardarGastos(Request $request)
+    public function guardarGastos(Request $request)
     {
         try {
             $user = $request->user();
-            
-            if (!$user) {
+
+            if (! $user) {
                 return response()->json(['error' => 'Usuario no autenticado'], 401);
             }
 
@@ -25,15 +24,35 @@ class GastosController extends Controller
                 'Monto' => 'required|numeric',
                 'Fecha' => 'required|date',
                 'Hora' => 'required|date_format:H:i',
-                'Evidencia' => 'required|file|mimes:jpg,png,pdf|max:20480',
+                'Evidencia' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
                 'Tipo' => 'required|in:Viaticos,Gasolina',
+                'Categoria' => [
+                    'nullable',
+                    Rule::in([
+                        'alimentos',
+                        'propina',
+                        'hotel',
+                        'peaje',
+                        'recarga_tag',
+                        'transporte',
+                        'estacionamiento',
+                        'comision_atm',
+                        'lavado',
+                        'otros',
+                    ]),
+                ],
+                'Metodo_pago' => [
+                    'nullable',
+                    Rule::in(['tag', 'efectivo', 'tarjeta', 'otro']),
+                ],
+                'Descripcion' => 'nullable|required_if:Categoria,otros|string|max:255',
                 'Km' => 'nullable|numeric',
                 'Gasolina_antes_carga' => 'nullable|numeric',
-                'Gasolina_despues_carga' => 'nullable|numeric'
-                ,'client_operation_id' => 'nullable|string|max:100'
+                'Gasolina_despues_carga' => 'nullable|numeric',
+                'client_operation_id' => 'nullable|string|max:100',
             ]);
 
-            if (!empty($validated['client_operation_id'])) {
+            if (! empty($validated['client_operation_id'])) {
                 $existing = gastos::query()
                     ->where('user_id', $user->id)
                     ->where('client_operation_id', $validated['client_operation_id'])
@@ -53,6 +72,13 @@ class GastosController extends Controller
                 'Hora' => $validated['Hora'],
                 'Evidencia' => $path,
                 'Tipo' => $validated['Tipo'],
+                'Categoria' => $validated['Tipo'] === 'Gasolina'
+                    ? 'gasolina'
+                    : ($validated['Categoria'] ?? null),
+                'Metodo_pago' => $validated['Metodo_pago'] ?? null,
+                'Descripcion' => isset($validated['Descripcion'])
+                    ? trim($validated['Descripcion'])
+                    : null,
                 'client_operation_id' => $validated['client_operation_id'] ?? null,
             ];
 
@@ -67,19 +93,19 @@ class GastosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $gasto
+                'data' => $gasto,
             ], 201);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al guardar gasto: ' . $e->getMessage());
+            Log::error('Error al guardar gasto: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'Error al procesar la solicitud',
-                'details' => env('APP_DEBUG') ? $e->getMessage() : null
+                'details' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
