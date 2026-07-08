@@ -50,6 +50,7 @@ class gastos extends Model
         'Gasolina_antes_carga',
         'Gasolina_despues_carga',
         'client_operation_id',
+        'mision_id',
     ];
 
     protected $casts = [
@@ -64,5 +65,10 @@ class gastos extends Model
     public function user()
     {
         return $this->belongsTo(apiUser::class);
+    }
+
+    public function mision()
+    {
+        return $this->belongsTo(Misiones::class, 'mision_id');
     }
 }

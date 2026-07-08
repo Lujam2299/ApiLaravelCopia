@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth; // Asegúrate de importar Auth para Auth::user() si lo usas
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Support\MissionStatus;
 
 class AuthController extends Controller
 {
@@ -46,16 +47,19 @@ class AuthController extends Controller
             'fecha_hoy' => Carbon::today()->toDateString(),
         ]);
 
-        $misionActiva = Misiones::where('fecha_inicio', '<=', Carbon::today())
-                        ->where('fecha_fin', '>=', Carbon::today())
-                        ->get()
-                        ->first(function ($mision) use ($user) {
-                            $raw = $mision->getRawOriginal('agentes_id');
-                            // Decodificar doble JSON
-                            $clean = stripslashes(trim($raw, '"'));
-                            $agentes = @json_decode($clean, true);
-                            return is_array($agentes) && in_array((string) $user->id, $agentes, true);
-                        });
+        $misionActiva = Misiones::query()
+            ->whereDate('fecha_inicio', '<=', Carbon::today())
+            ->where(function ($query): void {
+                $query->whereNull('fecha_fin')
+                    ->orWhereDate('fecha_fin', '>=', Carbon::today());
+            })
+            ->orderBy('fecha_inicio')
+            ->orderBy('id')
+            ->get()
+            ->first(fn (Misiones $mision) =>
+                $mision->tieneAgente((int) $user->id)
+                && MissionStatus::acceptsOperationalEntries($mision->estatus)
+            );
 
         if ($misionActiva) {
             Log::info('✅ [LOGIN] Misión activa ENCONTRADA', [

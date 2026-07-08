@@ -39,6 +39,7 @@ class GastosControllerTest extends TestCase
 
         $this->assertSame(201, $response->getStatusCode());
         $this->assertDatabaseHas('gastos', [
+            'mision_id' => 1,
             'Tipo' => 'Viaticos',
             'Categoria' => 'peaje',
             'Metodo_pago' => 'tag',
@@ -88,12 +89,61 @@ class GastosControllerTest extends TestCase
         ]);
     }
 
-    private function crearRequest(array $campos): Request
+    public function test_rechaza_una_mision_ajena(): void
     {
+        $this->crearMision([9], 'En Curso');
+
+        $response = app(GastosController::class)->guardarGastos($this->crearRequest([
+            'Tipo' => 'Viaticos',
+        ], false));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertArrayHasKey('mision_id', $response->getData(true)['errors']);
+    }
+
+    public function test_requiere_una_mision(): void
+    {
+        $request = $this->crearRequest(['Tipo' => 'Viaticos']);
+        $request->request->remove('mision_id');
+
+        $response = app(GastosController::class)->guardarGastos($request);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertArrayHasKey('mision_id', $response->getData(true)['errors']);
+    }
+
+    public function test_rechaza_gastos_fuera_del_periodo_de_la_mision(): void
+    {
+        $response = app(GastosController::class)->guardarGastos($this->crearRequest([
+            'Tipo' => 'Viaticos',
+            'Fecha' => '2026-08-15',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertArrayHasKey('Fecha', $response->getData(true)['errors']);
+    }
+
+    public function test_rechaza_gastos_de_una_mision_finalizada(): void
+    {
+        $this->crearMision([5], 'Finalizada');
+
+        $response = app(GastosController::class)->guardarGastos($this->crearRequest([
+            'Tipo' => 'Viaticos',
+        ], false));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertArrayHasKey('mision_id', $response->getData(true)['errors']);
+    }
+
+    private function crearRequest(array $campos, bool $crearMision = true): Request
+    {
+        $misionId = $crearMision ? $this->crearMision([5], 'En Curso') : 1;
+
         $request = Request::create('/api/guardarGastos', 'POST', array_merge([
             'Monto' => 250,
             'Fecha' => '2026-07-02',
             'Hora' => '07:30',
+            'mision_id' => $misionId,
         ], $campos), [], [
             'Evidencia' => UploadedFile::fake()->image('comprobante.jpg'),
         ]);
@@ -104,8 +154,29 @@ class GastosControllerTest extends TestCase
         return $request;
     }
 
+    private function crearMision(array $agentes, string $estatus): int
+    {
+        return (int) \DB::table('misiones')->insertGetId([
+            'agentes_id' => json_encode($agentes),
+            'fecha_inicio' => '2026-07-01',
+            'fecha_fin' => '2026-07-05',
+            'estatus' => $estatus,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function crearEsquemaGastos(): void
     {
+        Schema::create('misiones', function (Blueprint $table): void {
+            $table->id();
+            $table->json('agentes_id');
+            $table->date('fecha_inicio');
+            $table->date('fecha_fin')->nullable();
+            $table->string('estatus')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('gastos', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('user_id');
@@ -122,6 +193,7 @@ class GastosControllerTest extends TestCase
             $table->decimal('Gasolina_antes_carga', 10, 2)->nullable();
             $table->decimal('Gasolina_despues_carga', 10, 2)->nullable();
             $table->string('client_operation_id')->nullable();
+            $table->unsignedBigInteger('mision_id')->nullable();
             $table->timestamps();
         });
     }

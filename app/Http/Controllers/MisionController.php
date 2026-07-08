@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Misiones;
 use Illuminate\Support\Facades\Storage;
+use App\Support\MissionStatus;
 
 class MisionController extends Controller
 {
@@ -16,10 +17,10 @@ class MisionController extends Controller
         try {
             $user = $request->user();
 
-            $misiones = Misiones::whereJsonContains('agentes_id', $user->id)
-                ->whereIn('estatus', ['Activa', 'Pendiente'])
+            $misiones = Misiones::query()
                 ->select([
                     'id',
+                    'agentes_id',
                     'nombre_clave',
                     'estatus',
                     'arch_mision',
@@ -27,8 +28,14 @@ class MisionController extends Controller
                     'fecha_fin',
                     'updated_at'
                 ])
-                ->orderBy('estatus', 'desc') // Activas primero
-                ->get();
+                ->orderByDesc('fecha_inicio')
+                ->get()
+                ->filter(fn (Misiones $mision) =>
+                    $mision->tieneAgente((int) $user->id)
+                    && MissionStatus::acceptsOperationalEntries($mision->estatus)
+                )
+                ->values()
+                ->map(fn (Misiones $mision) => $mision->makeHidden('agentes_id'));
 
             return response()->json([
                 'success' => true,

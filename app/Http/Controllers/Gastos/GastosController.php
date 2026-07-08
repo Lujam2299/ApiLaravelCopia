@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Gastos;
 
 use App\Http\Controllers\Controller;
 use App\Models\gastos;
+use App\Models\Misiones;
+use App\Support\MissionStatus;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -50,7 +53,32 @@ class GastosController extends Controller
                 'Gasolina_antes_carga' => 'nullable|numeric',
                 'Gasolina_despues_carga' => 'nullable|numeric',
                 'client_operation_id' => 'nullable|string|max:100',
+                'mision_id' => 'required|integer|exists:misiones,id',
             ]);
+
+            $mision = Misiones::query()->findOrFail($validated['mision_id']);
+
+            if (! $mision->tieneAgente((int) $user->id)) {
+                throw ValidationException::withMessages([
+                    'mision_id' => 'No estás asignado a esta misión.',
+                ]);
+            }
+
+            if (! MissionStatus::acceptsOperationalEntries($mision->estatus)) {
+                throw ValidationException::withMessages([
+                    'mision_id' => 'La misión ya no admite gastos.',
+                ]);
+            }
+
+            $expenseDate = Carbon::parse($validated['Fecha'])->startOfDay();
+            $missionStart = Carbon::parse($mision->fecha_inicio)->startOfDay();
+            $missionEnd = Carbon::parse($mision->fecha_fin ?? $mision->fecha_inicio)->endOfDay();
+
+            if (! $expenseDate->betweenIncluded($missionStart, $missionEnd)) {
+                throw ValidationException::withMessages([
+                    'Fecha' => 'La fecha del gasto debe estar dentro del periodo de la misión.',
+                ]);
+            }
 
             if (! empty($validated['client_operation_id'])) {
                 $existing = gastos::query()
@@ -80,6 +108,7 @@ class GastosController extends Controller
                     ? trim($validated['Descripcion'])
                     : null,
                 'client_operation_id' => $validated['client_operation_id'] ?? null,
+                'mision_id' => $mision->id,
             ];
 
             // Solo agregar campos si son Gasolina

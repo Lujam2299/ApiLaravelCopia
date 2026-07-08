@@ -44,6 +44,36 @@ class Misiones extends Model
         'fecha_fin' => 'date',
     ];
 
+    /** @return array<int, int> */
+    public function agentesIdsNormalizados(): array
+    {
+        $ids = $this->agentes_id;
+
+        for ($attempt = 0; $attempt < 2 && is_string($ids); $attempt++) {
+            $decoded = json_decode($ids, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return [];
+            }
+
+            $ids = $decoded;
+        }
+
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map(
+            'intval',
+            array_filter($ids, fn ($id) => is_numeric($id) && (int) $id > 0)
+        )));
+    }
+
+    public function tieneAgente(int $userId): bool
+    {
+        return in_array($userId, $this->agentesIdsNormalizados(), true);
+    }
+
 
     public function agregarItinerario($user_id, $evento)
     {

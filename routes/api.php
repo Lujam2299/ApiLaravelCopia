@@ -10,6 +10,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
 use App\Http\Controllers\RealtimePositionController;
+use App\Http\Controllers\MisionCierreOperativoController;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -58,6 +59,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [MisionItinerarioController::class, 'store'])->name('misiones.itinerarios.store');
         Route::get('/', [MisionItinerarioController::class, 'index'])->name('misiones.itinerarios.index');
         Route::get('/user/{user_id}', [MisionItinerarioController::class, 'show'])->name('misiones.itinerarios.show');
+    });
+
+    Route::prefix('misiones/{mision}/cierres-operativos')->group(function () {
+        Route::get('/', [MisionCierreOperativoController::class, 'index'])->name('misiones.cierres-operativos.index');
+        Route::post('/', [MisionCierreOperativoController::class, 'store'])->name('misiones.cierres-operativos.store');
     });
 
     // Nuevas rutas para manejo de archivos de misión

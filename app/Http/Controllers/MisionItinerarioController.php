@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Misiones;
 use Illuminate\Support\Carbon;
+use App\Support\MissionStatus;
 
 class MisionItinerarioController extends Controller
 {
@@ -34,7 +35,7 @@ class MisionItinerarioController extends Controller
         $currentUser = $request->user();
 
         // Verificar que la misión esté activa
-        if (strtolower($mision->estatus) !== 'activa') {
+        if (! MissionStatus::acceptsOperationalEntries($mision->estatus)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No se pueden agregar eventos a una misión inactiva'
@@ -125,7 +126,7 @@ class MisionItinerarioController extends Controller
         $currentUser = auth()->user();
 
         // Verificar que la misión esté activa
-        if (strtolower($mision->estatus) !== 'activa') {
+        if (! MissionStatus::acceptsOperationalEntries($mision->estatus)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No se pueden ver itinerarios de una misión inactiva'
@@ -190,12 +191,7 @@ class MisionItinerarioController extends Controller
     // Métodos auxiliares protegidos
     protected function getAgentesFromMision(Misiones $mision): array
     {
-        if (is_array($mision->agentes_id)) {
-            return $mision->agentes_id;
-        }
-
-        $decoded = json_decode($mision->agentes_id, true);
-        return is_array($decoded) ? $decoded : [];
+        return $mision->agentesIdsNormalizados();
     }
 
     protected function getItinerariosFromMision(Misiones $mision): array
