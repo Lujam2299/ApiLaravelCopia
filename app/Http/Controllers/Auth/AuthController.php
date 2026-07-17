@@ -102,6 +102,8 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'punto' => $user->punto ?? null,
+                'rol' => $user->rol ?? null,
+                'empresa' => $user->empresa ?? null,
                 'mision_id_activa' => $misionActiva ? $misionActiva->id : null,
             ],
             'message' => 'Ingreso exitoso',

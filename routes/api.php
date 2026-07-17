@@ -11,6 +11,7 @@ use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\MisionController;
 use App\Http\Controllers\RealtimePositionController;
 use App\Http\Controllers\MisionCierreOperativoController;
+use App\Http\Controllers\SupervisorController;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,7 +36,28 @@ Route::middleware('auth:sanctum')->group(function () {
 //    Route::get('/user', fn(Request $request) => $request->user());
     Route::get('/user', [AuthController::class, 'user']);
 
+    Route::prefix('supervisores')->group(function () {
+        Route::get('/dashboard', [SupervisorController::class, 'dashboard']);
+        Route::get('/personal', [SupervisorController::class, 'people']);
+        Route::get('/asistencias', [SupervisorController::class, 'attendanceIndex']);
+        Route::get('/asistencias/actual', [SupervisorController::class, 'attendanceCurrent']);
+        Route::post('/asistencias', [SupervisorController::class, 'saveAttendance']);
+        Route::get('/tiempos-extra', [SupervisorController::class, 'overtimeIndex']);
+        Route::get('/vacaciones', [SupervisorController::class, 'vacationIndex']);
+        Route::get('/vacaciones/usuario/{user}/resumen', [SupervisorController::class, 'vacationSummary']);
+        Route::get('/vacaciones/usuario/{user}/kardex', [SupervisorController::class, 'vacationKardex']);
+        Route::post('/vacaciones/usuario/{user}', [SupervisorController::class, 'storeVacation']);
+        Route::post('/vacaciones/{solicitud}/resolver', [SupervisorController::class, 'resolveVacation']);
+        Route::post('/vacaciones/{solicitud}/archivo', [SupervisorController::class, 'uploadVacationFile']);
+        Route::post('/vacaciones/{solicitud}/cancelar', [SupervisorController::class, 'cancelVacation']);
+        Route::get('/altas', [SupervisorController::class, 'hiresIndex']);
+        Route::post('/altas', [SupervisorController::class, 'storeHire']);
+        Route::get('/bajas', [SupervisorController::class, 'terminationsIndex']);
+        Route::post('/bajas/{user}', [SupervisorController::class, 'storeTermination']);
+    });
+
     // Rutas de gastos y turnos
+    Route::middleware('module.enabled:mobile_custodios')->group(function () {
     Route::post('/guardarTurno', [TurnosController::class, 'guardarTurno']);
     Route::post('/guardarGastos', [GastosController::class, 'guardarGastos']);
 
@@ -43,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/locations', [LocationController::class, 'store']);
     Route::post('/realtime-positions', [RealtimePositionController::class, 'store']);
     Route::get('/realtime-position/user/{id}/recent', [RealtimePositionController::class, 'getUserRecentPositions']);
+    });
 
 
     // Mensajería
@@ -55,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conversations', [MessageController::class, 'getConversations']);
 
     // Rutas de itinerario - VERSIÓN CORREGIDA
+    Route::middleware('module.enabled:mobile_custodios')->group(function () {
     Route::prefix('misiones/{mision}/itinerarios')->group(function () {
         Route::post('/', [MisionItinerarioController::class, 'store'])->name('misiones.itinerarios.store');
         Route::get('/', [MisionItinerarioController::class, 'index'])->name('misiones.itinerarios.index');
@@ -79,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Descargar archivo
     Route::get('/{mision}/descargar', [MisionController::class, 'descargarArchivo'])
         ->name('misiones.descargar');
+    });
     });
 
     Route::get('/user-photo/{solicitud_id}', function ($solicitud_id) {

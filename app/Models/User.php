@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Conversation> $conversations
  */
@@ -15,7 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
     protected $table = 'users';
     /**
      * The attributes that are mass assignable.
@@ -29,6 +30,11 @@ class User extends Authenticatable
         'rol',
         'telefono',
         'punto',
+        'empresa',
+        'estatus',
+        'fecha_ingreso',
+        'num_empleado',
+        'sol_alta_id',
         'sol_docs_id',
         'email_verified_at',
         'remember_token'
@@ -63,6 +69,16 @@ class User extends Authenticatable
     public function documentacionAltas()
     {
         return $this->belongsTo(DocumentacionAltas::class, 'sol_docs_id', 'id');
+    }
+
+    public function solicitudAlta()
+    {
+        return $this->hasOne(SolicitudAlta::class, 'id', 'sol_alta_id');
+    }
+
+    public function subpuntosSupervisados()
+    {
+        return $this->belongsToMany(Subpunto::class, 'supervisorpuntos', 'supervisor_id', 'subpunto_id');
     }
     public function routeNotificationForFcm()
     {
