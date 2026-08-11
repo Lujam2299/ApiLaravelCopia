@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Turnos;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\turno;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage; // No olvides importar Storage
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException; // No olvides importar Storage
 
 class TurnosController extends Controller
 {
@@ -15,7 +14,7 @@ class TurnosController extends Controller
     {
         try {
             $user = $request->user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json(['error' => 'Usuario no autenticado'], 401);
             }
 
@@ -45,7 +44,7 @@ class TurnosController extends Controller
 
             $validatedData = $request->validate($rules);
 
-            if (!empty($validatedData['client_operation_id'])) {
+            if (! empty($validatedData['client_operation_id'])) {
                 $existing = turno::query()
                     ->where('User_id', $user->id)
                     ->where('client_operation_id', $validatedData['client_operation_id'])
@@ -69,8 +68,7 @@ class TurnosController extends Controller
                 'Punto' => $user->punto,
                 'Placas_unidad' => $validatedData['Placas_unidad'],
                 'Tipo' => $validatedData['Tipo'],
-                $fileField => $filePath
-                ,'client_operation_id' => $validatedData['client_operation_id'] ?? null
+                $fileField => $filePath, 'client_operation_id' => $validatedData['client_operation_id'] ?? null,
             ];
 
             // Asignar campos dinámicamente
@@ -83,17 +81,17 @@ class TurnosController extends Controller
 
             return response()->json([
                 'message' => 'Turno guardado exitosamente',
-                'data' => $turno
+                'data' => $turno,
             ], 201);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error del servidor',
-                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null,
             ], 500);
         }
     }

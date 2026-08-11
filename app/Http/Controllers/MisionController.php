@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Misiones;
-use Illuminate\Support\Facades\Storage;
 use App\Support\MissionStatus;
+use Illuminate\Http\Request;
 
 class MisionController extends Controller
 {
@@ -26,12 +25,11 @@ class MisionController extends Controller
                     'arch_mision',
                     'fecha_inicio',
                     'fecha_fin',
-                    'updated_at'
+                    'updated_at',
                 ])
                 ->orderByDesc('fecha_inicio')
                 ->get()
-                ->filter(fn (Misiones $mision) =>
-                    $mision->tieneAgente((int) $user->id)
+                ->filter(fn (Misiones $mision) => $mision->tieneAgente((int) $user->id)
                     && MissionStatus::acceptsOperationalEntries($mision->estatus)
                 )
                 ->values()
@@ -39,13 +37,13 @@ class MisionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'misiones' => $misiones
+                'misiones' => $misiones,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener misiones: ' . $e->getMessage()
+                'message' => 'Error al obtener misiones: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -53,52 +51,53 @@ class MisionController extends Controller
     /**
      * Obtener archivo principal de una misión
      */
-  public function archivoMision(Request $request, $misionId)
-{
-    try {
-        $user = $request->user();
-        $mision = Misiones::findOrFail($misionId);
+    public function archivoMision(Request $request, $misionId)
+    {
+        try {
+            $user = $request->user();
+            $mision = Misiones::findOrFail($misionId);
 
-        // Verificar asignación
-        if (!in_array($user->id, $mision->agentes_id ?? [])) {
+            // Verificar asignación
+            if (! in_array($user->id, $mision->agentes_id ?? [])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No estás asignado a esta misión',
+                ], 403);
+            }
+
+            // Cambiamos la respuesta para incluir la misión aunque no tenga archivo
+            $response = [
+                'success' => true,
+                'mision' => [
+                    'id' => $mision->id,
+                    'nombre_clave' => $mision->nombre_clave,
+                    'estatus' => $mision->estatus,
+                    'fecha_inicio' => $mision->fecha_inicio,
+                    'fecha_fin' => $mision->fecha_fin,
+                ],
+                'estatus_actual' => $mision->estatus,
+            ];
+
+            // Solo agregar archivo si existe
+            if (! empty($mision->arch_mision)) {
+                $response['archivo'] = [
+                    'nombre' => basename($mision->arch_mision),
+                    'ruta' => $mision->arch_mision,
+                    'tipo' => 'principal',
+                    'fecha_actualizacion' => $mision->updated_at->format('Y-m-d H:i:s'),
+                ];
+            }
+
+            return response()->json($response);
+
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'No estás asignado a esta misión'
-            ], 403);
+                'message' => 'Error al obtener información de la misión: '.$e->getMessage(),
+            ], 500);
         }
-
-        // Cambiamos la respuesta para incluir la misión aunque no tenga archivo
-        $response = [
-            'success' => true,
-            'mision' => [
-                'id' => $mision->id,
-                'nombre_clave' => $mision->nombre_clave,
-                'estatus' => $mision->estatus,
-                'fecha_inicio' => $mision->fecha_inicio,
-                'fecha_fin' => $mision->fecha_fin
-            ],
-            'estatus_actual' => $mision->estatus
-        ];
-
-        // Solo agregar archivo si existe
-        if (!empty($mision->arch_mision)) {
-            $response['archivo'] = [
-                'nombre' => basename($mision->arch_mision),
-                'ruta' => $mision->arch_mision,
-                'tipo' => 'principal',
-                'fecha_actualizacion' => $mision->updated_at->format('Y-m-d H:i:s')
-            ];
-        }
-
-        return response()->json($response);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al obtener información de la misión: ' . $e->getMessage()
-        ], 500);
     }
-}
+
     /**
      * Descargar archivo de misión
      */
@@ -109,14 +108,14 @@ class MisionController extends Controller
             $mision = Misiones::findOrFail($misionId);
 
             // Verificar asignación
-            if (!in_array($user->id, $mision->agentes_id ?? [])) {
+            if (! in_array($user->id, $mision->agentes_id ?? [])) {
                 abort(403, 'No estás asignado a esta misión');
             }
 
             $rutaArchivo = $request->header('X-Archivo-Ruta') ?? $mision->arch_mision;
-            $rutaCompleta = storage_path('app/' . $rutaArchivo);
+            $rutaCompleta = storage_path('app/'.$rutaArchivo);
 
-            if (!file_exists($rutaCompleta)) {
+            if (! file_exists($rutaCompleta)) {
                 abort(404, 'El archivo no existe');
             }
 
@@ -125,7 +124,7 @@ class MisionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al descargar: ' . $e->getMessage()
+                'message' => 'Error al descargar: '.$e->getMessage(),
             ], 500);
         }
     }

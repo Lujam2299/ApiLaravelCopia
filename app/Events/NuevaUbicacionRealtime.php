@@ -5,7 +5,6 @@ namespace App\Events;
 use App\Models\RealtimePosition;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -24,7 +23,7 @@ class NuevaUbicacionRealtime implements ShouldBroadcastNow
 
     public function broadcastOn()
     {
-        //return new PrivateChannel('realtime-positions.usuario.'.$this->position->user_id);
+        // return new PrivateChannel('realtime-positions.usuario.'.$this->position->user_id);
         return new Channel('realtime-positions.all'); // Canal público
     }
 

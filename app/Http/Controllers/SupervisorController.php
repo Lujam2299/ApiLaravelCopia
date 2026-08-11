@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Asistencia;
 use App\Models\DocumentacionAltas;
-use App\Models\Punto;
 use App\Models\Retardo;
 use App\Models\SolicitudAlta;
 use App\Models\SolicitudBajas;
@@ -13,11 +12,11 @@ use App\Models\Subpunto;
 use App\Models\TiemposExtra;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 

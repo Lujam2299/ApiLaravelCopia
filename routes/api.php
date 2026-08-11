@@ -1,22 +1,24 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Gastos\GastosController;
-use App\Http\Controllers\Turnos\TurnosController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MessageController;
-use App\Http\Controllers\MisionItinerarioController;
-use App\Http\Controllers\MisionController;
-use App\Http\Controllers\RealtimePositionController;
 use App\Http\Controllers\MisionCierreOperativoController;
+use App\Http\Controllers\MisionController;
+use App\Http\Controllers\MisionItinerarioController;
+use App\Http\Controllers\RealtimePositionController;
 use App\Http\Controllers\SupervisorController;
+use App\Http\Controllers\Turnos\TurnosController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-Route::get('/test', function () { return response()->json(['message' => 'OK']); });
+Route::get('/test', function () {
+    return response()->json(['message' => 'OK']);
+});
 
 // Rutas protegidas por Sanctum
 Route::middleware('auth:sanctum')->group(function () {
@@ -33,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::put('/user/password', [AuthController::class, 'updatePassword']);
-//    Route::get('/user', fn(Request $request) => $request->user());
+    //    Route::get('/user', fn(Request $request) => $request->user());
     Route::get('/user', [AuthController::class, 'user']);
 
     Route::prefix('supervisores')->group(function () {
@@ -59,15 +61,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de gastos y turnos
     Route::middleware('module.enabled:mobile_custodios')->group(function () {
-    Route::post('/guardarTurno', [TurnosController::class, 'guardarTurno']);
-    Route::post('/guardarGastos', [GastosController::class, 'guardarGastos']);
+        Route::post('/guardarTurno', [TurnosController::class, 'guardarTurno']);
+        Route::post('/guardarGastos', [GastosController::class, 'guardarGastos']);
 
-    // Rutas de ubicación
-    Route::post('/locations', [LocationController::class, 'store']);
-    Route::post('/realtime-positions', [RealtimePositionController::class, 'store']);
-    Route::get('/realtime-position/user/{id}/recent', [RealtimePositionController::class, 'getUserRecentPositions']);
+        // Rutas de ubicación
+        Route::post('/locations', [LocationController::class, 'store']);
+        Route::post('/realtime-positions', [RealtimePositionController::class, 'store']);
+        Route::get('/realtime-position/user/{id}/recent', [RealtimePositionController::class, 'getUserRecentPositions']);
     });
-
 
     // Mensajería
     Route::get('/messages/search-users', [MessageController::class, 'searchUsers']);
@@ -80,43 +81,43 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de itinerario - VERSIÓN CORREGIDA
     Route::middleware('module.enabled:mobile_custodios')->group(function () {
-    Route::prefix('misiones/{mision}/itinerarios')->group(function () {
-        Route::post('/', [MisionItinerarioController::class, 'store'])->name('misiones.itinerarios.store');
-        Route::get('/', [MisionItinerarioController::class, 'index'])->name('misiones.itinerarios.index');
-        Route::get('/user/{user_id}', [MisionItinerarioController::class, 'show'])->name('misiones.itinerarios.show');
-    });
+        Route::prefix('misiones/{mision}/itinerarios')->group(function () {
+            Route::post('/', [MisionItinerarioController::class, 'store'])->name('misiones.itinerarios.store');
+            Route::get('/', [MisionItinerarioController::class, 'index'])->name('misiones.itinerarios.index');
+            Route::get('/user/{user_id}', [MisionItinerarioController::class, 'show'])->name('misiones.itinerarios.show');
+        });
 
-    Route::prefix('misiones/{mision}/cierres-operativos')->group(function () {
-        Route::get('/', [MisionCierreOperativoController::class, 'index'])->name('misiones.cierres-operativos.index');
-        Route::post('/', [MisionCierreOperativoController::class, 'store'])->name('misiones.cierres-operativos.store');
-    });
+        Route::prefix('misiones/{mision}/cierres-operativos')->group(function () {
+            Route::get('/', [MisionCierreOperativoController::class, 'index'])->name('misiones.cierres-operativos.index');
+            Route::post('/', [MisionCierreOperativoController::class, 'store'])->name('misiones.cierres-operativos.store');
+        });
 
-    // Nuevas rutas para manejo de archivos de misión
-    Route::prefix('misiones')->group(function () {
-         // Obtener misiones del usuario (activas y pendientes)
-    Route::get('/usuario', [MisionController::class, 'misionesUsuario'])
-        ->name('misiones.usuario');
+        // Nuevas rutas para manejo de archivos de misión
+        Route::prefix('misiones')->group(function () {
+            // Obtener misiones del usuario (activas y pendientes)
+            Route::get('/usuario', [MisionController::class, 'misionesUsuario'])
+                ->name('misiones.usuario');
 
-    // Obtener archivo de misión específica
-    Route::get('/{mision}/archivo', [MisionController::class, 'archivoMision'])
-        ->name('misiones.archivo');
+            // Obtener archivo de misión específica
+            Route::get('/{mision}/archivo', [MisionController::class, 'archivoMision'])
+                ->name('misiones.archivo');
 
-    // Descargar archivo
-    Route::get('/{mision}/descargar', [MisionController::class, 'descargarArchivo'])
-        ->name('misiones.descargar');
-    });
+            // Descargar archivo
+            Route::get('/{mision}/descargar', [MisionController::class, 'descargarArchivo'])
+                ->name('misiones.descargar');
+        });
     });
 
     Route::get('/user-photo/{solicitud_id}', function ($solicitud_id) {
-    $user = App\Models\User::query()
-        ->with('documentacionAltas')
-        ->where('sol_docs_id', $solicitud_id)
-        ->first();
+        $user = App\Models\User::query()
+            ->with('documentacionAltas')
+            ->where('sol_docs_id', $solicitud_id)
+            ->first();
 
-    if ($user?->photo_url) {
-        return response()->json(['photo_url' => $user->photo_url]);
-    }
+        if ($user?->photo_url) {
+            return response()->json(['photo_url' => $user->photo_url]);
+        }
 
-    return response()->json(['photo_url' => null], 404);
-})->where('solicitud_id', '[0-9]+');
+        return response()->json(['photo_url' => null], 404);
+    })->where('solicitud_id', '[0-9]+');
 });

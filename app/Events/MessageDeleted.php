@@ -15,7 +15,7 @@ class MessageDeleted implements ShouldBroadcastNow
 
     public function broadcastOn(): PresenceChannel
     {
-        return new PresenceChannel('conversacion.' . $this->conversationId);
+        return new PresenceChannel('conversacion.'.$this->conversationId);
     }
 
     public function broadcastAs(): string

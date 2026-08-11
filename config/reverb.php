@@ -84,12 +84,12 @@ return [
                     // 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                     'useTLS' => false,
                 ],
-                'allowed_origins' => [ 'http://192.168.1.18:8000', 'http://localhost','*'],
+                'allowed_origins' => ['http://192.168.1.18:8000', 'http://localhost', '*'],
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
                 'enable_client_messages' => true,
-                 'webhooks' => [
+                'webhooks' => [
                     [
                         'url' => env('REVERB_WEBHOOK_URL'),
                         'event_types' => ['client_event', 'channel_occupied', 'channel_vacated'],

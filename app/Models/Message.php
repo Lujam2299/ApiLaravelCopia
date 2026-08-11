@@ -1,10 +1,11 @@
 <?php
+
 namespace App\Models;
 
+use App\Events\MessageSent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Events\MessageSent;
 
 class Message extends Model
 {
@@ -15,7 +16,7 @@ class Message extends Model
         'user_id',
         'body',
         'parent_id',
-        'expires_at'
+        'expires_at',
     ];
 
     protected $casts = [

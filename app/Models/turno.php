@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class turno extends Model
 {
     use HasFactory;
+
     protected $table = 'turno';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -29,7 +32,6 @@ class turno extends Model
         'client_operation_id',
     ];
 
-
     /**
      * The attributes that should be hidden for arrays.
      *
@@ -47,7 +49,7 @@ class turno extends Model
     protected $casts = [
         'Hora_inicio' => 'datetime:H:i',
         'Hora_final' => 'datetime:H:i',
-        'Km_inicio' =>  'decimal:2',
+        'Km_inicio' => 'decimal:2',
         'Km_final' => 'decimal:2',
         'Rayas_gasolina_inicio' => 'decimal:2',
         'Rayas_gasolina_final' => 'decimal:2',
@@ -62,9 +64,10 @@ class turno extends Model
      */
     public function user()
     {
-        return $this->belongsTo(apiUser::class, );
+        return $this->belongsTo(apiUser::class);
     }
-       public function turnos()
+
+    public function turnos()
     {
         return $this->hasMany(turno::class, 'User_id');
     }

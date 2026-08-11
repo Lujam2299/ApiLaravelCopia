@@ -5,12 +5,19 @@ namespace App\Support;
 final class MissionStatus
 {
     public const PENDING = 'Pendiente';
+
     public const SCHEDULED = 'Programada';
+
     public const ACTIVE = 'Activa';
+
     public const IN_PROGRESS = 'En Curso';
+
     public const REPORTED = 'Reportada';
+
     public const FINISHED = 'Finalizada';
+
     public const CANCELLED = 'Cancelada';
+
     public const UNKNOWN = 'Desconocido';
 
     public static function normalize(?string $status): string

@@ -99,7 +99,7 @@ class MisionCierreOperativoControllerTest extends TestCase
             'incidencias' => null,
             'pendientes' => null,
             'observaciones' => null,
-            'client_operation_id' => 'closure-test-' . uniqid(),
+            'client_operation_id' => 'closure-test-'.uniqid(),
             'client_created_at' => '2026-07-02T18:00:00Z',
         ], $campos));
 

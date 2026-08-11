@@ -22,7 +22,7 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastOn(): PresenceChannel
     {
-        return new PresenceChannel('conversacion.' . $this->message->conversation_id);
+        return new PresenceChannel('conversacion.'.$this->message->conversation_id);
     }
 
     public function broadcastAs(): string
