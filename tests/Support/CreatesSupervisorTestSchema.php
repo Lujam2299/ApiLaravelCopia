@@ -99,7 +99,40 @@ trait CreatesSupervisorTestSchema
         Schema::create('solicitud_vacaciones', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->integer('periodo')->nullable();
+            $table->integer('dias_por_derecho')->nullable();
+            $table->date('fecha_inicio')->nullable();
+            $table->date('fecha_fin')->nullable();
+            $table->decimal('monto', 10, 2)->nullable();
+            $table->string('observaciones')->nullable();
+            $table->string('tipo')->nullable();
+            $table->string('autorizado_por')->nullable();
+            $table->integer('dias_ya_utilizados')->nullable();
+            $table->integer('dias_disponibles')->nullable();
+            $table->integer('dias_solicitados')->nullable();
+            $table->string('turno_doble')->nullable();
+            $table->text('supervisores_ids')->nullable();
+            $table->string('archivo_solicitud')->nullable();
             $table->string('estatus')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('solicitud_bajas', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->date('fecha_solicitud')->nullable();
+            $table->date('fecha_baja')->nullable();
+            $table->text('motivo')->nullable();
+            $table->string('por')->nullable();
+            $table->string('incapacidad')->nullable();
+            $table->string('descuento')->nullable();
+            $table->date('ultima_asistencia')->nullable();
+            $table->string('adelanto_nomina')->nullable();
+            $table->string('arch_renuncia')->nullable();
+            $table->string('arch_equipo_entregado')->nullable();
+            $table->string('archivo_baja')->nullable();
+            $table->string('estatus')->nullable();
+            $table->string('observaciones')->nullable();
             $table->timestamps();
         });
 
