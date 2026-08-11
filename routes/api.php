@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/vacaciones/{solicitud}/cancelar', [SupervisorController::class, 'cancelVacation']);
         Route::get('/altas', [SupervisorController::class, 'hiresIndex']);
         Route::post('/altas', [SupervisorController::class, 'storeHire']);
+        Route::post('/altas/{solicitud}', [SupervisorController::class, 'updateHire']);
         Route::get('/bajas', [SupervisorController::class, 'terminationsIndex']);
         Route::post('/bajas/{user}', [SupervisorController::class, 'storeTermination']);
     });

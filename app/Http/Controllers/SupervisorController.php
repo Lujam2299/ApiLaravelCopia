@@ -557,6 +557,7 @@ class SupervisorController extends Controller
 
         $records = SolicitudAlta::query()
             ->where('solicitante', $supervisor->name)
+            ->with('documentacion')
             ->latest('created_at')
             ->limit(80)
             ->get();
@@ -648,6 +649,100 @@ class SupervisorController extends Controller
         $this->storeHireDocuments($request, $solicitud);
 
         return response()->json(['message' => 'Solicitud de alta creada.', 'data' => $solicitud], 201);
+    }
+
+    public function updateHire(Request $request, SolicitudAlta $solicitud)
+    {
+        $supervisor = $this->authorizeSupervisor($request);
+
+        if ($solicitud->solicitante !== $supervisor->name) {
+            throw ValidationException::withMessages(['solicitud' => 'La solicitud no pertenece a tu historial.']);
+        }
+
+        if (strtoupper(trim((string) $solicitud->status)) !== 'EN PROCESO') {
+            throw ValidationException::withMessages(['status' => 'Solo se pueden editar solicitudes en proceso.']);
+        }
+
+        $validated = $request->validate([
+            'tipo' => ['required', Rule::in(['oficina', 'armado', 'noarmado'])],
+            'name' => ['nullable', 'string', 'max:255'],
+            'apellido_paterno' => ['nullable', 'string', 'max:255'],
+            'apellido_materno' => ['nullable', 'string', 'max:255'],
+            'fecha_nacimiento' => ['nullable', 'date'],
+            'curp' => ['nullable', 'string', 'max:255'],
+            'nss' => ['nullable', 'string', 'max:255'],
+            'edo_civil' => ['nullable', 'string', 'max:255'],
+            'rfc' => ['nullable', 'string', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:255'],
+            'calle' => ['nullable', 'string', 'max:255'],
+            'num_ext' => ['nullable', 'string', 'max:255'],
+            'colonia' => ['nullable', 'string', 'max:255'],
+            'cp_fiscal' => ['nullable', 'string', 'max:255'],
+            'ciudad' => ['nullable', 'string', 'max:255'],
+            'estado' => ['nullable', 'string', 'max:255'],
+            'peso' => ['nullable', 'string', 'max:255'],
+            'estatura' => ['nullable', 'string', 'max:255'],
+            'liga_rfc' => ['nullable', 'string', 'max:255'],
+            'infonavit' => ['nullable', 'string', 'max:255'],
+            'fonacot' => ['nullable', 'string', 'max:255'],
+            'domicilio_comprobante' => ['nullable', 'string', 'max:255'],
+            'departamento' => ['nullable', 'string', 'max:255'],
+            'rol' => ['nullable', 'string', 'max:255'],
+            'punto' => ['nullable', 'string', 'max:255'],
+            'reingreso' => ['nullable', 'string', 'max:255'],
+            'empresa' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('solicitud_altas', 'email')->ignore($solicitud->id)],
+            'sueldo_mensual' => ['nullable', 'string', 'max:255'],
+            'fecha_ingreso' => ['nullable', 'date'],
+            'tipo_periodo' => ['nullable', 'string', 'max:255'],
+            'banco' => ['nullable', 'string', 'max:255'],
+            'cuenta_bancaria' => ['nullable', 'string', 'max:255'],
+            'documents' => ['nullable', 'array'],
+            'documents.*' => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:5120'],
+        ]);
+
+        $solicitud->update([
+            'nombre' => $validated['name'] ?? null,
+            'apellido_paterno' => $validated['apellido_paterno'] ?? null,
+            'apellido_materno' => $validated['apellido_materno'] ?? null,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'tipo_empleado' => $validated['tipo'],
+            'curp' => $validated['curp'] ?? null,
+            'nss' => $validated['nss'] ?? null,
+            'estado_civil' => $validated['edo_civil'] ?? null,
+            'rfc' => $validated['rfc'] ?? null,
+            'telefono' => $validated['telefono'] ?? null,
+            'domicilio_calle' => $validated['calle'] ?? null,
+            'domicilio_numero' => $validated['num_ext'] ?? null,
+            'domicilio_colonia' => $validated['colonia'] ?? null,
+            'cp_fiscal' => $validated['cp_fiscal'] ?? null,
+            'domicilio_ciudad' => $validated['ciudad'] ?? null,
+            'domicilio_estado' => $validated['estado'] ?? null,
+            'peso' => $validated['peso'] ?? null,
+            'estatura' => $validated['estatura'] ?? null,
+            'liga_rfc' => $validated['liga_rfc'] ?? null,
+            'infonavit' => $validated['infonavit'] ?? null,
+            'fonacot' => $validated['fonacot'] ?? null,
+            'domicilio_comprobante' => $validated['domicilio_comprobante'] ?? null,
+            'departamento' => $validated['departamento'] ?? null,
+            'rol' => $validated['rol'] ?? null,
+            'punto' => $validated['punto'] ?? $supervisor->punto,
+            'reingreso' => $validated['reingreso'] ?? null,
+            'empresa' => $this->normalizeCompany($validated['empresa'] ?? $supervisor->empresa),
+            'email' => $validated['email'] ?? null,
+            'sueldo_mensual' => $validated['sueldo_mensual'] ?? null,
+            'fecha_ingreso' => $validated['fecha_ingreso'] ?? null,
+            'tipo_periodo' => $validated['tipo_periodo'] ?? null,
+            'banco' => $validated['banco'] ?? null,
+            'cuenta_bancaria' => $validated['cuenta_bancaria'] ?? null,
+        ]);
+
+        $this->storeHireDocuments($request, $solicitud, true);
+
+        return response()->json([
+            'message' => 'Solicitud de alta actualizada.',
+            'data' => $solicitud->fresh('documentacion'),
+        ]);
     }
 
     public function terminationsIndex(Request $request)
@@ -987,7 +1082,7 @@ class SupervisorController extends Controller
         }
     }
 
-    private function storeHireDocuments(Request $request, SolicitudAlta $solicitud): void
+    private function storeHireDocuments(Request $request, SolicitudAlta $solicitud, bool $replaceExisting = false): void
     {
         $documents = $request->file('documents', []);
         if (! is_array($documents) || empty($documents)) {
@@ -999,6 +1094,15 @@ class SupervisorController extends Controller
             if (! $file || ! $file->isValid()) {
                 continue;
             }
+
+            if ($replaceExisting && $doc->{$field}) {
+                Storage::disk('public')->delete(preg_replace(
+                    '#^/?(?:public/)?storage/#',
+                    '',
+                    str_replace('\\', '/', $doc->{$field})
+                ));
+            }
+
             $doc->{$field} = 'storage/'.$file->storeAs(
                 'solicitudesAltas/'.$solicitud->id,
                 $field.'.'.$file->getClientOriginalExtension(),
