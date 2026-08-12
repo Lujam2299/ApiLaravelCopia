@@ -17,7 +17,7 @@ class ToastNotification implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return array_map(
-            fn (int $userId) => new PrivateChannel('App.Models.User.' . $userId),
+            fn (int $userId) => new PrivateChannel('App.Models.User.'.$userId),
             $this->userIds
         );
     }

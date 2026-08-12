@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\RealtimePosition;
-use App\Events\NuevaUbicacionRealtime; // Importar el evento
+use App\Events\NuevaUbicacionRealtime;
+use App\Models\RealtimePosition; // Importar el evento
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log; // Importar Log
@@ -75,7 +74,7 @@ class RealtimePositionController extends Controller
         return response()->json([
             'user_id' => $id,
             'positions' => $positions,
-            'total' => $positions->count()
+            'total' => $positions->count(),
         ]);
     }
 }

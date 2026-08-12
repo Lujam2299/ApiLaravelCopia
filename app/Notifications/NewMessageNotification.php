@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
@@ -80,7 +81,7 @@ class NewMessageNotification extends Notification implements ShouldQueue
             ->custom('type', 'new_message')
             ->action('view_message', [
                 'conversation_id' => $this->message->conversation_id,
-                'message_id' => $this->message->id
+                'message_id' => $this->message->id,
             ]);
     }
 }

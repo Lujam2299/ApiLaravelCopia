@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Misiones;
-use Illuminate\Support\Carbon;
 use App\Support\MissionStatus;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class MisionItinerarioController extends Controller
 {
@@ -38,25 +38,25 @@ class MisionItinerarioController extends Controller
         if (! MissionStatus::acceptsOperationalEntries($mision->estatus)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se pueden agregar eventos a una misión inactiva'
+                'message' => 'No se pueden agregar eventos a una misión inactiva',
             ], 400);
         }
 
         // Verificar que el usuario autenticado tenga permisos
-        if ($currentUser->id != $request->user_id && !$currentUser->esAdministrador()) {
+        if ($currentUser->id != $request->user_id && ! $currentUser->esAdministrador()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permiso para agregar eventos a este usuario'
+                'message' => 'No tienes permiso para agregar eventos a este usuario',
             ], 403);
         }
 
         // Obtener agentes asignados de forma segura
         $agents = $this->getAgentesFromMision($mision);
 
-        if (!in_array($request->user_id, $agents)) {
+        if (! in_array($request->user_id, $agents)) {
             return response()->json([
                 'success' => false,
-                'message' => 'El usuario no está asignado a esta misión'
+                'message' => 'El usuario no está asignado a esta misión',
             ], 403);
         }
 
@@ -65,8 +65,7 @@ class MisionItinerarioController extends Controller
         if ($request->filled('client_operation_id')) {
             $alreadyStored = collect($itinerarios)
                 ->flatMap(fn ($itinerario) => $itinerario['eventos'] ?? [])
-                ->contains(fn ($evento) =>
-                    ($evento['client_operation_id'] ?? null) === $request->client_operation_id
+                ->contains(fn ($evento) => ($evento['client_operation_id'] ?? null) === $request->client_operation_id
                 );
 
             if ($alreadyStored) {
@@ -80,7 +79,7 @@ class MisionItinerarioController extends Controller
 
         // Crear el evento con marca de tiempo
         $evento = [
-            'user_id' => (int)$request->user_id,
+            'user_id' => (int) $request->user_id,
             'fecha' => $request->fecha,
             'hora' => $request->hora,
             'descripcion' => $request->descripcion,
@@ -88,7 +87,7 @@ class MisionItinerarioController extends Controller
             'client_operation_id' => $request->client_operation_id,
             'client_created_at' => $request->client_created_at,
             'created_at' => now()->toDateTimeString(),
-            'updated_at' => now()->toDateTimeString()
+            'updated_at' => now()->toDateTimeString(),
         ];
 
         // Buscar o crear entrada para el usuario
@@ -101,7 +100,7 @@ class MisionItinerarioController extends Controller
             // Crear nueva entrada para el usuario
             $itinerarios[] = [
                 'user_id' => $request->user_id,
-                'eventos' => [$evento]
+                'eventos' => [$evento],
             ];
         }
 
@@ -115,7 +114,7 @@ class MisionItinerarioController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Evento agregado al itinerario correctamente',
-            'data' => $this->getUserItinerarios($itinerarios, $request->user_id)
+            'data' => $this->getUserItinerarios($itinerarios, $request->user_id),
         ]);
     }
 
@@ -129,24 +128,24 @@ class MisionItinerarioController extends Controller
         if (! MissionStatus::acceptsOperationalEntries($mision->estatus)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se pueden ver itinerarios de una misión inactiva'
+                'message' => 'No se pueden ver itinerarios de una misión inactiva',
             ], 400);
         }
 
         // Verificar permisos del usuario
-        if ($currentUser->id != $user_id && !$currentUser->esAdministrador()) {
+        if ($currentUser->id != $user_id && ! $currentUser->esAdministrador()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permiso para ver este itinerario'
+                'message' => 'No tienes permiso para ver este itinerario',
             ], 403);
         }
 
         // Verificar que el usuario esté asignado a la misión
         $agents = $this->getAgentesFromMision($mision);
-        if (!in_array($user_id, $agents)) {
+        if (! in_array($user_id, $agents)) {
             return response()->json([
                 'success' => false,
-                'message' => 'El usuario no está asignado a esta misión'
+                'message' => 'El usuario no está asignado a esta misión',
             ], 403);
         }
 
@@ -158,8 +157,8 @@ class MisionItinerarioController extends Controller
             'success' => true,
             'data' => [
                 // 'user_id' => (int)$user_id,
-                'eventos' => $userItinerarios
-            ]
+                'eventos' => $userItinerarios,
+            ],
         ]);
     }
 
@@ -170,10 +169,10 @@ class MisionItinerarioController extends Controller
         $currentUser = auth()->user();
 
         // Solo administradores pueden ver todos los itinerarios
-        if (!$currentUser->esAdministrador()) {
+        if (! $currentUser->esAdministrador()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No tienes permiso para ver todos los itinerarios'
+                'message' => 'No tienes permiso para ver todos los itinerarios',
             ], 403);
         }
 
@@ -184,7 +183,7 @@ class MisionItinerarioController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $itinerarios
+            'data' => $itinerarios,
         ]);
     }
 
@@ -201,6 +200,7 @@ class MisionItinerarioController extends Controller
         }
 
         $decoded = json_decode($mision->itinerarios, true);
+
         return is_array($decoded) ? $decoded : [];
     }
 
@@ -211,6 +211,7 @@ class MisionItinerarioController extends Controller
                 return $index;
             }
         }
+
         return false;
     }
 
@@ -219,8 +220,9 @@ class MisionItinerarioController extends Controller
         foreach ($itinerarios as &$itinerario) {
             if (isset($itinerario['eventos']) && is_array($itinerario['eventos'])) {
                 usort($itinerario['eventos'], function ($a, $b) {
-                    $dateA = Carbon::parse($a['fecha'] . ' ' . $a['hora']);
-                    $dateB = Carbon::parse($b['fecha'] . ' ' . $b['hora']);
+                    $dateA = Carbon::parse($a['fecha'].' '.$a['hora']);
+                    $dateB = Carbon::parse($b['fecha'].' '.$b['hora']);
+
                     return $dateA <=> $dateB;
                 });
             }
@@ -236,6 +238,7 @@ class MisionItinerarioController extends Controller
                 return $itinerario['eventos'] ?? [];
             }
         }
+
         return [];
     }
 }

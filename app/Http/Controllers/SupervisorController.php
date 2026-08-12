@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Asistencia;
 use App\Models\DocumentacionAltas;
-use App\Models\Punto;
 use App\Models\Retardo;
 use App\Models\SolicitudAlta;
 use App\Models\SolicitudBajas;
@@ -13,11 +12,11 @@ use App\Models\Subpunto;
 use App\Models\TiemposExtra;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -1001,8 +1000,7 @@ class SupervisorController extends Controller
 
     private function formatUser(User $user): array
     {
-        $doc = $user->solicitudAlta?->documentacion ?: $user->documentacionAltas;
-        $photo = $doc?->arch_foto;
+        $user->loadMissing('documentacionAltas');
 
         return [
             'id' => $user->id,
@@ -1014,7 +1012,7 @@ class SupervisorController extends Controller
             'estatus' => $user->estatus,
             'num_empleado' => $user->num_empleado,
             'fecha_ingreso' => $user->fecha_ingreso,
-            'photo_url' => $photo ? url(Storage::disk('public')->url(preg_replace('#^/?(?:public/)?storage/#', '', str_replace('\\', '/', $photo)))) : null,
+            'photo_url' => $user->photo_url,
         ];
     }
 

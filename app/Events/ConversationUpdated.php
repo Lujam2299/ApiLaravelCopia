@@ -17,7 +17,7 @@ class ConversationUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return array_map(fn ($id) => new PrivateChannel('App.Models.User.' . $id), $this->recipientIds);
+        return array_map(fn ($id) => new PrivateChannel('App.Models.User.'.$id), $this->recipientIds);
     }
 
     public function broadcastAs(): string

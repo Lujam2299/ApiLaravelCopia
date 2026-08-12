@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateAPI
 {
@@ -13,11 +12,12 @@ class AuthenticateAPI
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-      public function handle(Request $request, Closure $next, $scope)
+    public function handle(Request $request, Closure $next, $scope)
     {
-        if (!$request->user()->tokenCan($scope)) {
+        if (! $request->user()->tokenCan($scope)) {
             return response()->json(['message' => 'No autorizado'], 403);
         }
+
         return $next($request);
     }
 }

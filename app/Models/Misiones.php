@@ -31,6 +31,7 @@ class Misiones extends Model
         'arch_mision',
         'estatus',
     ];
+
     protected $casts = [
         'itinerarios' => 'array',
         'agentes_id' => 'array',
@@ -74,22 +75,20 @@ class Misiones extends Model
         return in_array($userId, $this->agentesIdsNormalizados(), true);
     }
 
-
     public function agregarItinerario($user_id, $evento)
     {
         $itinerarios = $this->itinerarios ?? [];
 
-
-        //busca si el usurio ya tiene el evento en su itinerario
-        $index  = $this->buscarIndiceUsuario($user_id, $itinerarios);
+        // busca si el usurio ya tiene el evento en su itinerario
+        $index = $this->buscarIndiceUsuario($user_id, $itinerarios);
         if ($index === false) {
-            //agrega el evento al usuario existente
+            // agrega el evento al usuario existente
             $itinerarios[$index]['eventos'][] = $evento;
         } else {
-            //crear el nueve registro al usuario
+            // crear el nueve registro al usuario
             $itinerarios[] = [
                 'user_id' => $user_id,
-                'eventos' => [$evento]
+                'eventos' => [$evento],
             ];
         }
         $this->itinerarios = $itinerarios;
@@ -102,6 +101,7 @@ class Misiones extends Model
                 return $index;
             }
         }
+
         return false;
     }
 }

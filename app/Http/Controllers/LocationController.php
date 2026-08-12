@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Events\NuevaAlertaPanico;
-use App\Http\Controllers\Controller;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
