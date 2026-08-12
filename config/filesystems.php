@@ -47,6 +47,14 @@ return [
             'report' => false,
         ],
 
+        'erp_public' => [
+            'driver' => 'local',
+            'root' => env('ERP_PUBLIC_STORAGE_PATH', storage_path('app/public')),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
