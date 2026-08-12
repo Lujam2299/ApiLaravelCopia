@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -136,13 +136,10 @@ class User extends Authenticatable
             return $storedPath;
         }
 
-        $relativePath = preg_replace('#^/?(?:public/)?storage/#', '', $storedPath);
-        $relativePath = ltrim($relativePath ?? '', '/');
-
-        if ($relativePath === '' || ! Storage::disk('public')->exists($relativePath)) {
-            return null;
-        }
-
-        return url(Storage::disk('public')->url($relativePath));
+        return URL::temporarySignedRoute(
+            'media.user-photo',
+            now()->addHours(6),
+            ['documentacion' => $this->documentacionAltas->getKey()]
+        );
     }
 }

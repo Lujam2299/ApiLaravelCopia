@@ -10,8 +10,13 @@ use App\Http\Controllers\MisionItinerarioController;
 use App\Http\Controllers\RealtimePositionController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\Turnos\TurnosController;
+use App\Http\Controllers\UserPhotoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/media/user-photo/{documentacion}', [UserPhotoController::class, 'show'])
+    ->middleware('signed')
+    ->name('media.user-photo');
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);

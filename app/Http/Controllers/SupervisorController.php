@@ -1000,8 +1000,7 @@ class SupervisorController extends Controller
 
     private function formatUser(User $user): array
     {
-        $doc = $user->solicitudAlta?->documentacion ?: $user->documentacionAltas;
-        $photo = $doc?->arch_foto;
+        $user->loadMissing('documentacionAltas');
 
         return [
             'id' => $user->id,
@@ -1013,7 +1012,7 @@ class SupervisorController extends Controller
             'estatus' => $user->estatus,
             'num_empleado' => $user->num_empleado,
             'fecha_ingreso' => $user->fecha_ingreso,
-            'photo_url' => $photo ? url(Storage::disk('public')->url(preg_replace('#^/?(?:public/)?storage/#', '', str_replace('\\', '/', $photo)))) : null,
+            'photo_url' => $user->photo_url,
         ];
     }
 

@@ -27,22 +27,11 @@ class MessageController extends Controller
             ->limit(10)
             ->get()
             ->map(function ($user) {
-                $photoUrl = null;
-
-                if ($user->documentacionAltas && $user->documentacionAltas->arch_foto) {
-                    $relativePath = str_replace(['storage/', 'storage\\'], '', $user->documentacionAltas->arch_foto);
-                    $publicPath = storage_path('app/public/'.$relativePath);
-
-                    if (file_exists($publicPath)) {
-                        $photoUrl = asset('storage/'.$relativePath);
-                    }
-                }
-
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'photo_url' => $photoUrl,
+                    'photo_url' => $user->photo_url,
                 ];
             });
 
@@ -305,7 +294,7 @@ class MessageController extends Controller
 
                     // Procesar usuarios para incluir la URL de la foto
                     $processedUsers = $conversation->users->map(function ($u) {
-                        $photoUrl = null;
+                        $u->loadMissing('documentacionAltas');
 
                         \Log::info('Procesando usuario para foto:', [
                             'user_id' => $u->id,
@@ -345,7 +334,7 @@ class MessageController extends Controller
                         return [
                             'id' => $u->id,
                             'name' => $u->name,
-                            'photo_url' => $photoUrl,
+                            'photo_url' => $u->photo_url,
                         ];
                     });
 
