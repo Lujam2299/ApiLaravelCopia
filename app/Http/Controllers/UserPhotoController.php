@@ -12,9 +12,11 @@ class UserPhotoController extends Controller
     {
         $path = $this->normalizePublicPath($documentacion->arch_foto);
 
-        abort_unless($path && Storage::disk('public')->exists($path), 404);
+        $disk = Storage::disk('erp_public');
 
-        return Storage::disk('public')->response($path, null, [
+        abort_unless($path && $disk->exists($path), 404);
+
+        return $disk->response($path, null, [
             'Cache-Control' => 'private, max-age=21600',
             'X-Content-Type-Options' => 'nosniff',
         ]);
