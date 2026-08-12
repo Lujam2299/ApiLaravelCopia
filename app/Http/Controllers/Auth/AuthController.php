@@ -128,7 +128,7 @@ class AuthController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => ['required', Password::min(8)->letters()->numbers()],
-                'telefono' => 'nullable|string|size:10|unique:users', // 'nullable' and 'unique' as per your migration
+                //'telefono' => 'nullable|string|size:10|unique:users', // 'nullable' and 'unique' as per your migration
                 'rol' => 'nullable|in:interno,externo', // 'nullable' and restricted to 'interno' or 'externo'
                 'punto' => 'nullable|string|max:255', // 'nullable' and string
             ], [
@@ -140,8 +140,8 @@ class AuthController extends Controller
                 'email.email' => 'Por favor proporcione un correo válido.',
                 'password.required' => 'Contraseña es requerida.',
                 'password.min' => 'La contraseña debe contener al menos 8 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos.',
-                'telefono.size' => 'El teléfono debe contener 10 dígitos si se provee.',
-                'telefono.unique' => 'Este teléfono ya está registrado.',
+                //'telefono.size' => 'El teléfono debe contener 10 dígitos si se provee.',
+                //'telefono.unique' => 'Este teléfono ya está registrado.',
                 'rol.in' => 'El rol debe ser "interno" o "externo".',
             ]);
 
@@ -150,7 +150,7 @@ class AuthController extends Controller
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
                 'password' => Hash::make($validatedData['password']),
-                'telefono' => $validatedData['telefono'] ?? null, // Assign null if not provided in request
+                //'telefono' => $validatedData['telefono'] ?? null, // Assign null if not provided in request
                 'rol' => $validatedData['rol'] ?? 'interno',      // Assign validated role, or 'interno' as default
                 'punto' => $validatedData['punto'] ?? null,      // Assign null if not provided
                 'remember_token' => Str::random(80), // Consider removing if only using Sanctum tokens
@@ -169,7 +169,7 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'telefono' => $user->telefono, // Include telefono in the response
+                    //'telefono' => $user->telefono, // Include telefono in the response
                     'rol' => $user->rol,          // Include rol in the response
                     'punto' => $user->punto,      // Include punto in the response
                 ],
@@ -245,7 +245,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'telefono' => $user->telefono ?? null,
+            //'telefono' => $user->telefono ?? null,
             'direccion' => $user->direccion ?? null,
             'created_at' => $user->created_at,
             'sol_docs_id' => $user->sol_docs_id,
