@@ -71,6 +71,24 @@ class SupervisorAccessAndScopeTest extends TestCase
         $this->assertEqualsCanonicalizing([$includedOne->id, $includedTwo->id], $ids);
     }
 
+    public function test_supervisor_people_accept_role_and_psc_company_variants(): void
+    {
+        $this->actingAsSupervisor(['empresa' => 'PSC', 'punto' => '001']);
+
+        $guard = $this->createTestUser(['name' => 'Guardia operativo', 'rol' => 'Guardia Operativo', 'empresa' => 'P.S.C.', 'punto' => '001']);
+        $escort = $this->createTestUser(['name' => 'Escolta', 'rol' => 'Escolta', 'empresa' => 'PSC Seguridad', 'punto' => '001']);
+        $this->createTestUser(['name' => 'Supervisor operativo', 'rol' => 'Supervisor Operativo', 'empresa' => 'PSC', 'punto' => '001']);
+        $this->createTestUser(['name' => 'Otra empresa', 'rol' => 'Guardia Operativo', 'empresa' => 'OTRA', 'punto' => '001']);
+
+        $peopleResponse = $this->getJson('/api/supervisores/personal')->assertOk();
+        $peopleIds = collect($peopleResponse->json('data'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing([$guard->id, $escort->id], $peopleIds);
+
+        $attendanceResponse = $this->getJson('/api/supervisores/asistencias/actual?fecha=2026-08-11&punto=001')->assertOk();
+        $attendanceIds = collect($attendanceResponse->json('people'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing([$guard->id, $escort->id], $attendanceIds);
+    }
+
     private function createSubpoint(int $puntoId, string $name, int $code, string $zone): int
     {
         return (int) DB::table('subpuntos')->insertGetId([

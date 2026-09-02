@@ -24,15 +24,6 @@ use Illuminate\Validation\ValidationException;
 
 class SupervisorController extends Controller
 {
-    private const ROLES_ASISTENCIA = [
-        'SUPERVISOR',
-        'APOYO SUPERVISOR',
-        'K9',
-        'CORTADOR',
-        'GUARDIA',
-        'RECEPCIONISTA',
-    ];
-
     private const RH_NOTIFICATION_ROLES = [
         'ADMIN',
         'ADMINISTRADOR',
@@ -136,10 +127,7 @@ class SupervisorController extends Controller
         ])->map(fn ($id) => (int) $id)->unique()->all() : [];
 
         $usuariosActuales = User::query()
-            ->where('estatus', 'Activo')
-            ->where('empresa', $supervisor->empresa)
-            ->whereIn(DB::raw('UPPER(TRIM(rol))'), $this->normalizedAttendanceRoles())
-            ->whereIn('punto', $configuracion['alias'])
+            ->tap(fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $configuracion['alias']))
             ->pluck('id')
             ->all();
 
@@ -189,10 +177,7 @@ class SupervisorController extends Controller
 
         $peopleIds = collect($statuses)->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->values()->all();
         $allowedPeopleIds = User::query()
-            ->where('estatus', 'Activo')
-            ->where('empresa', $supervisor->empresa)
-            ->whereIn(DB::raw('UPPER(TRIM(rol))'), $this->normalizedAttendanceRoles())
-            ->whereIn('punto', $configuracion['alias'])
+            ->tap(fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $configuracion['alias']))
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -307,9 +292,7 @@ class SupervisorController extends Controller
         $alcance = $this->resolverAlcance($supervisor);
 
         $records = TiemposExtra::query()
-            ->whereHas('user', fn ($query) => $query
-                ->where('empresa', $supervisor->empresa)
-                ->whereIn('punto', $alcance['aliases']))
+            ->whereHas('user', fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $alcance['aliases']))
             ->with('user')
             ->latest('fecha')
             ->limit(80)
@@ -764,9 +747,7 @@ class SupervisorController extends Controller
         $alcance = $this->resolverAlcance($supervisor);
 
         $records = SolicitudBajas::query()
-            ->whereHas('user', fn ($query) => $query
-                ->where('empresa', $supervisor->empresa)
-                ->whereIn('punto', $alcance['aliases']))
+            ->whereHas('user', fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $alcance['aliases']))
             ->with('user')
             ->latest('created_at')
             ->limit(80)
@@ -850,7 +831,7 @@ class SupervisorController extends Controller
             return null;
         }
 
-        $normalized = strtoupper(preg_replace('/[^A-Z0-9]/', '', $value));
+        $normalized = $this->normalizedTextKey($value);
         if (str_contains($normalized, 'PSC')) {
             return 'PSC';
         }
@@ -979,18 +960,23 @@ class SupervisorController extends Controller
     private function peopleQuery(User $supervisor, array $alcance)
     {
         return User::query()
-            ->where('empresa', $supervisor->empresa)
+            ->tap(fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $alcance['aliases'] ?? []));
+    }
+
+    private function scopeSupervisorPeople($query, User $supervisor, array $aliases): void
+    {
+        $this->scopeCompany($query, $supervisor->empresa);
+
+        $query
             ->where('estatus', 'Activo')
-            ->whereRaw('UPPER(TRIM(rol)) NOT LIKE ?', ['%SUPERVISOR%'])
-            ->whereIn('punto', $alcance['aliases'] ?: ['']);
+            ->whereRaw("UPPER(TRIM(COALESCE(rol, ''))) NOT LIKE ?", ['%SUPERVISOR%'])
+            ->whereIn('punto', $aliases ?: ['']);
     }
 
     private function vacationsQuery(User $supervisor, array $alcance)
     {
         return SolicitudVacaciones::query()
-            ->whereHas('user', fn ($query) => $query
-                ->where('empresa', $supervisor->empresa)
-                ->whereIn('punto', $alcance['aliases'] ?: ['']));
+            ->whereHas('user', fn ($query) => $this->scopeSupervisorPeople($query, $supervisor, $alcance['aliases'] ?? []));
     }
 
     private function assertUserInScope(int $userId, User $supervisor, array $alcance): void
@@ -1051,6 +1037,33 @@ class SupervisorController extends Controller
             is_numeric($value) ? (string) (int) $value : null,
             is_numeric($value) ? str_pad((string) (int) $value, 3, '0', STR_PAD_LEFT) : null,
         ])));
+    }
+
+    private function scopeCompany($query, ?string $company): void
+    {
+        $normalized = $this->normalizedTextKey($company);
+
+        if ($normalized === '') {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        if (str_contains($normalized, 'PSC')) {
+            $query->whereRaw($this->normalizedSqlExpression('empresa').' LIKE ?', ['%PSC%']);
+            return;
+        }
+
+        $query->whereRaw($this->normalizedSqlExpression('empresa').' = ?', [$normalized]);
+    }
+
+    private function normalizedSqlExpression(string $column): string
+    {
+        return "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(COALESCE({$column}, '')), '.', ''), ' ', ''), '-', ''), '_', ''))";
+    }
+
+    private function normalizedTextKey(?string $value): string
+    {
+        return strtoupper(preg_replace('/[^A-Z0-9]/i', '', trim((string) $value)));
     }
 
     private function formatUser(User $user): array
@@ -1182,11 +1195,6 @@ class SupervisorController extends Controller
         }
 
         return json_decode($value ?: '[]', true) ?: [];
-    }
-
-    private function normalizedAttendanceRoles(): array
-    {
-        return array_values(array_unique(array_map(fn ($role) => strtoupper(trim($role)), self::ROLES_ASISTENCIA)));
     }
 
     private function onlyAttendees(array $values, array $asistentes): array
