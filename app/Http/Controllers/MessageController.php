@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Events\ConversationUpdated;
 use App\Events\MessageDeleted;
 use App\Events\MessagesRead;
-use App\Events\ToastNotification;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\ToastNotificationLog;
 use App\Models\User;
+use App\Services\RealtimeToast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -125,14 +126,17 @@ class MessageController extends Controller
         ));
 
         if ($toastRecipientIds !== []) {
-            broadcast(new ToastNotification($toastRecipientIds, [
+            RealtimeToast::toUsers($toastRecipientIds, [
                 'icon' => 'info',
                 'title' => 'Nuevo mensaje de '.($message->user?->name ?? 'un participante'),
                 'text' => Str::limit($message->body, 120),
                 'url' => '/mensajes/'.$message->conversation_id,
                 'key' => 'message:'.$message->id,
                 'conversation_id' => $message->conversation_id,
-            ]));
+                'type' => ToastNotificationLog::TYPE_MESSAGE,
+                'audience' => 'private',
+                'actor_user_id' => Auth::id(),
+            ]);
         }
 
         return response()->json([

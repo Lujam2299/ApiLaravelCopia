@@ -10,7 +10,9 @@ use App\Models\SolicitudBajas;
 use App\Models\SolicitudVacaciones;
 use App\Models\Subpunto;
 use App\Models\TiemposExtra;
+use App\Models\ToastNotificationLog;
 use App\Models\User;
+use App\Services\RealtimeToast;
 use Carbon\Carbon;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
@@ -29,6 +31,16 @@ class SupervisorController extends Controller
         'CORTADOR',
         'GUARDIA',
         'RECEPCIONISTA',
+    ];
+
+    private const RH_NOTIFICATION_ROLES = [
+        'ADMIN',
+        'ADMINISTRADOR',
+        'AUXILIAR RECURSOS HUMANOS',
+        'AUXILIAR RH',
+        'AUX RH',
+        'RECURSOS HUMANOS',
+        'JEFA RECURSOS HUMANOS',
     ];
 
     public function dashboard(Request $request)
@@ -647,6 +659,8 @@ class SupervisorController extends Controller
 
         $this->storeHireDocuments($request, $solicitud);
 
+        $this->notifyRhNewHireRequest($solicitud, $supervisor);
+
         return response()->json(['message' => 'Solicitud de alta creada.', 'data' => $solicitud], 201);
     }
 
@@ -809,6 +823,8 @@ class SupervisorController extends Controller
         }
         $solicitud->save();
 
+        $this->notifyRhNewTerminationRequest($solicitud, $user, $supervisor);
+
         return response()->json(['message' => 'Solicitud de baja creada.', 'data' => $solicitud], 201);
     }
 
@@ -840,6 +856,45 @@ class SupervisorController extends Controller
         }
 
         return $value;
+    }
+
+    private function notifyRhNewHireRequest(SolicitudAlta $solicitud, User $supervisor): void
+    {
+        $candidateName = $this->formatSolicitudAltaName($solicitud) ?: 'Nuevo ingreso';
+
+        RealtimeToast::toRoles(self::RH_NOTIFICATION_ROLES, [
+            'icon' => 'success',
+            'title' => 'Nueva solicitud de alta',
+            'text' => $candidateName.' · enviada por '.($supervisor->name ?? 'supervisor'),
+            'url' => '/solicitudes_altas/'.$solicitud->id,
+            'key' => 'rh-hire-request:'.$solicitud->id.':created',
+            'type' => ToastNotificationLog::TYPE_RH_HIRE_REQUEST,
+            'audience' => 'rh',
+            'actor_user_id' => $supervisor->id,
+        ], (int) $supervisor->id);
+    }
+
+    private function notifyRhNewTerminationRequest(SolicitudBajas $solicitud, User $employee, User $supervisor): void
+    {
+        RealtimeToast::toRoles(self::RH_NOTIFICATION_ROLES, [
+            'icon' => 'warning',
+            'title' => 'Nueva solicitud de baja',
+            'text' => ($employee->name ?? 'Colaborador').' · enviada por '.($supervisor->name ?? 'supervisor'),
+            'url' => '/solicitudes_bajas',
+            'key' => 'rh-termination-request:'.$solicitud->id.':created',
+            'type' => ToastNotificationLog::TYPE_RH_TERMINATION_REQUEST,
+            'audience' => 'rh',
+            'actor_user_id' => $supervisor->id,
+        ], (int) $supervisor->id);
+    }
+
+    private function formatSolicitudAltaName(SolicitudAlta $solicitud): string
+    {
+        return collect([
+            $solicitud->nombre,
+            $solicitud->apellido_paterno,
+            $solicitud->apellido_materno,
+        ])->filter()->implode(' ');
     }
 
     private function vacationDaysByPeriod(int $period): int
