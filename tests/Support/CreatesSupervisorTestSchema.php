@@ -165,6 +165,7 @@ trait CreatesSupervisorTestSchema
             $table->string('departamento')->nullable();
             $table->string('rol')->nullable();
             $table->string('punto')->nullable();
+            $table->string('zona_supervisor')->nullable();
             $table->string('reingreso')->nullable();
             $table->string('empresa')->nullable();
             $table->string('email')->nullable()->unique();

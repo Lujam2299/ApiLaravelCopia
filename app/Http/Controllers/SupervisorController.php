@@ -133,6 +133,7 @@ class SupervisorController extends Controller
 
         $ids = array_values(array_unique([...$usuariosActuales, ...$idsGuardados]));
         $people = User::withTrashed()
+            ->whereRaw("UPPER(TRIM(COALESCE(rol, ''))) <> ?", ['MONITORISTA'])
             ->with('solicitudAlta.documentacion')
             ->whereIn('id', $ids ?: [0])
             ->orderBy('name')
@@ -190,6 +191,13 @@ class SupervisorController extends Controller
 
         $allowedSubpointIds = collect($alcance['points'])->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
         $coverageSubpoints = collect($coberturas)->pluck('subpunto_id')->filter()->map(fn ($id) => (int) $id)->all();
+        $coveragePeopleIds = collect($coberturas)
+            ->map(fn ($item) => (int) ($item['user_id'] ?? $item['id'] ?? 0))->all();
+        if (array_diff($coveragePeopleIds, $allowedPeopleIds)) {
+            throw ValidationException::withMessages([
+                'coberturas' => 'Las coberturas contienen personal fuera de tu alcance.',
+            ]);
+        }
         if (array_diff($coverageSubpoints, $allowedSubpointIds)) {
             throw ValidationException::withMessages([
                 'coberturas' => 'Las coberturas deben pertenecer a tus puntos permitidos.',
@@ -916,7 +924,28 @@ class SupervisorController extends Controller
 
     private function resolverAlcance(User $supervisor): array
     {
-        $supervisor->loadMissing('subpuntosSupervisados.punto');
+        $supervisor->loadMissing('solicitudAlta', 'subpuntosSupervisados.punto');
+
+        $zonaSupervisor = trim((string) ($supervisor->solicitudAlta?->zona_supervisor ?? ''));
+        if ($zonaSupervisor !== '') {
+            $subpoints = Subpunto::with('punto')
+                ->whereRaw('UPPER(TRIM(zona)) = ?', [strtoupper($zonaSupervisor)])
+                ->orderBy('nombre')
+                ->get();
+
+            if ($subpoints->isNotEmpty()) {
+                $points = $subpoints->map(fn (Subpunto $subpunto) => $this->formatSubpoint($subpunto))->values()->all();
+
+                return [
+                    'base_point' => null,
+                    'zone' => $zonaSupervisor,
+                    'message' => 'Puedes operar puntos de la zona '.$zonaSupervisor.'.',
+                    'points' => $points,
+                    'aliases' => collect($points)->flatMap(fn ($point) => $point['alias'])->unique()->values()->all(),
+                ];
+            }
+        }
+
         $base = $supervisor->subpuntosSupervisados->first() ?: $this->findSubpointByValue($supervisor->punto);
 
         if (! $base) {
@@ -970,6 +999,7 @@ class SupervisorController extends Controller
         $query
             ->where('estatus', 'Activo')
             ->whereRaw("UPPER(TRIM(COALESCE(rol, ''))) NOT LIKE ?", ['%SUPERVISOR%'])
+            ->whereRaw("UPPER(TRIM(COALESCE(rol, ''))) <> ?", ['MONITORISTA'])
             ->whereIn('punto', $aliases ?: ['']);
     }
 
@@ -1045,11 +1075,13 @@ class SupervisorController extends Controller
 
         if ($normalized === '') {
             $query->whereRaw('1 = 0');
+
             return;
         }
 
         if (str_contains($normalized, 'PSC')) {
             $query->whereRaw($this->normalizedSqlExpression('empresa').' LIKE ?', ['%PSC%']);
+
             return;
         }
 
@@ -1088,7 +1120,7 @@ class SupervisorController extends Controller
     {
         $attendance->loadMissing('retardos', 'tiemposExtra');
 
-        return [
+        $data = [
             'id' => $attendance->id,
             'fecha' => $attendance->fecha,
             'hora_asistencia' => $attendance->hora_asistencia,
@@ -1111,6 +1143,32 @@ class SupervisorController extends Controller
                 ],
             ]),
         ];
+
+        // Hide excluded personnel in responses without changing stored attendance.
+        $ids = collect([
+            ...$data['asistentes'], ...$data['faltas'], ...$data['descansos'],
+            ...array_keys($data['turnos']), ...array_keys($data['fotos_asistentes']),
+            ...collect($data['coberturas'])->pluck('id')->all(),
+            ...$data['retardos']->keys()->all(), ...$data['tiempos_extra']->keys()->all(),
+        ])->map(fn ($id) => (int) $id)->unique()->all();
+        $excluded = User::withTrashed()->whereIn('id', $ids)
+            ->whereRaw("UPPER(TRIM(COALESCE(rol, ''))) = ?", ['MONITORISTA'])
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        foreach (['asistentes', 'faltas', 'descansos'] as $field) {
+            $data[$field] = array_values(array_filter($data[$field],
+                fn ($id) => ! in_array((int) $id, $excluded, true)));
+        }
+        foreach (['turnos', 'fotos_asistentes'] as $field) {
+            $data[$field] = array_diff_key($data[$field], array_flip($excluded));
+        }
+        $data['coberturas'] = array_values(array_filter($data['coberturas'],
+            fn ($item) => ! in_array((int) ($item['user_id'] ?? $item['id'] ?? 0), $excluded, true)));
+        foreach (['retardos', 'tiempos_extra'] as $field) {
+            $data[$field] = $data[$field]->except($excluded);
+        }
+
+        return $data;
     }
 
     private function syncRetardos(Asistencia $record, array $retardos, array $asistentes, int $supervisorId): void
